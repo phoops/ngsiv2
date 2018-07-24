@@ -25,7 +25,7 @@ type typeValue struct {
 // Context attribute: property of a context entity.
 type Attribute struct {
 	typeValue
-	Metadata map[string]*Metadata `json:"metadata"`
+	Metadata map[string]*Metadata `json:"metadata,omitempty"`
 }
 
 // Context metadata: an optional part of the attribute.
