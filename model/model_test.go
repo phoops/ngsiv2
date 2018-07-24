@@ -3,6 +3,7 @@ package model_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/phoops/ngsiv2/model"
 )
@@ -20,6 +21,16 @@ func TestEntityUnmarshal(t *testing.T) {
 			"metadata": {},
 			"type": "Float",
 			"value": 23
+		},
+		"location": {
+			"metadata": {},
+			"type": "geo:point",
+			"value": "43.8030095, 11.2385831"
+		},
+		"lastUpdate": {
+			"metadata": {},
+			"type": "DateTime",
+			"value": "2018-07-24T07:21:24.238Z"
 		},
 		"type": "Room"
 	}
@@ -74,12 +85,53 @@ func TestEntityUnmarshal(t *testing.T) {
 	if temperatureVal != 23.0 {
 		t.Fatalf("Expected '%v' for temperature value, got '%v'", 23.0, temperatureVal)
 	}
+
+	if locationAttr, err := roomEntity.GetAttribute("location"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if locationAttr.Type != model.GeoPointType {
+			t.Fatalf("Expected '%s' for location attribute type, got '%s'", "GeoPoint", locationAttr.Type)
+		}
+		if _, err := locationAttr.GetAsInteger(); err == nil {
+			t.Fatal("Expected a failure on non integer value 'location'")
+		}
+		if locationVal, err := locationAttr.GetAsGeoPoint(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if locationVal.Latitude != 43.8030095 || locationVal.Longitude != 11.2385831 {
+				t.Fatalf("Unexpected value reading lastUpdate")
+			}
+		}
+	}
+
+	if lastUpdateAttr, err := roomEntity.GetAttribute("lastUpdate"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if lastUpdateAttr.Type != model.DateTimeType {
+			t.Fatalf("Expected '%s' for lastUpdate attribute type, got '%s'", "DateTime", lastUpdateAttr.Type)
+		}
+		if _, err := lastUpdateAttr.GetAsInteger(); err == nil {
+			t.Fatal("Expected a failure on non integer value 'lastUpdate'")
+		}
+		if lastUpdateVal, err := lastUpdateAttr.GetAsDateTime(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if lastUpdateVal.Day() != 24 || lastUpdateVal.Minute() != 21 {
+				t.Fatalf("Unexpected value reading lastUpdate")
+			}
+		}
+	}
+
 }
 
 func TestEntityMarshal(t *testing.T) {
 	office := model.NewEntity("openspace", "Office")
 	office.SetAttributeAsString("name", "Phoops HQ")
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
+	timeNow := time.Now()
+	office.SetAttributeAsDateTime("lastUpdate", timeNow)
+	gp := model.NewGeoPoint(4.1, 2.3)
+	office.SetAttributeAsGeoPoint("location", gp)
 
 	bytes, err := json.Marshal(office)
 	if err != nil {
@@ -121,5 +173,29 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	if temperatureVal != 34.2 {
 		t.Fatalf("Expected '%v' for temperature value, got '%v'", 34.2, temperatureVal)
+	}
+
+	if lastUpdateAttr, err := unmarshaled.GetAttribute("lastUpdate"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if lastUpdateVal, err := lastUpdateAttr.GetAsDateTime(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if lastUpdateVal.Day() != timeNow.Day() || lastUpdateVal.Minute() != timeNow.Minute() {
+				t.Fatalf("Expected '%v' for lastUpdate value, got '%v'", timeNow, lastUpdateVal)
+			}
+		}
+	}
+
+	if locationAttr, err := unmarshaled.GetAttribute("location"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if locationVal, err := locationAttr.GetAsGeoPoint(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if locationVal.Latitude != gp.Latitude || locationVal.Longitude != gp.Longitude {
+				t.Fatalf("Expected '%v' for location value, got '%v'", gp, locationVal)
+			}
+		}
 	}
 }

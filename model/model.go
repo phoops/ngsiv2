@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Context entity: a thing in the NGSI model.
@@ -39,6 +41,11 @@ const (
 	IntegerType    AttributeType = "Integer"
 	PercentageType AttributeType = "Percentage"
 	DateTimeType   AttributeType = "DateTime"
+	GeoPointType   AttributeType = "geo:point"
+	GeoLineType    AttributeType = "geo:line"
+	GeoPolygonType AttributeType = "geo:polygon"
+	GeoBoxType     AttributeType = "geo:box"
+	GeoJSONType    AttributeType = "geo:json"
 )
 
 type ActionType string
@@ -50,6 +57,11 @@ const (
 	DeleteAction       ActionType = "delete"
 	ReplaceAction      ActionType = "replace"
 )
+
+type GeoPoint struct {
+	Latitude  float64
+	Longitude float64
+}
 
 type BatchUpdate struct {
 	ActionType ActionType `json:"actionType"`
@@ -114,6 +126,31 @@ func (e *Entity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
+func NewGeoPoint(latitude float64, longitude float64) *GeoPoint {
+	return &GeoPoint{latitude, longitude}
+}
+
+func (p *GeoPoint) UnmarshalJSON(b []byte) error {
+	tokens := strings.Split(string(b), ",")
+	if len(tokens) != 2 {
+		return fmt.Errorf("Invalid geo:point value: '%s'", string(b))
+	}
+	lat, err := strconv.ParseFloat(strings.TrimSpace(tokens[0]), 64)
+	if err != nil {
+		return fmt.Errorf("Invalid latitude value: '%s'", tokens[0])
+	}
+	lon, err := strconv.ParseFloat(strings.TrimSpace(tokens[1]), 64)
+	if err != nil {
+		return fmt.Errorf("Invalid longitude value: '%s'", tokens[1])
+	}
+	*p = GeoPoint{lat, lon}
+	return nil
+}
+
+func (p *GeoPoint) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%v, %v"`, p.Latitude, p.Longitude)), nil
+}
+
 func (e *Entity) GetAttribute(name string) (*Attribute, error) {
 	if attr, ok := e.Attributes[name]; ok {
 		return attr, nil
@@ -149,6 +186,24 @@ func (e *Entity) SetAttributeAsFloat(name string, value float64) {
 	}
 }
 
+func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) {
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  DateTimeType,
+			Value: value,
+		},
+	}
+}
+
+func (e *Entity) SetAttributeAsGeoPoint(name string, value *GeoPoint) {
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  GeoPointType,
+			Value: value,
+		},
+	}
+}
+
 func (a *Attribute) GetAsString() (string, error) {
 	if a.Type != StringType {
 		return "", fmt.Errorf("Attribute is not String, but %s", a.Type)
@@ -168,6 +223,29 @@ func (a *Attribute) GetAsFloat() (float64, error) {
 		return 0, fmt.Errorf("Attribute is not Float, but %s", a.Type)
 	}
 	return a.Value.(float64), nil
+}
+
+func (a *Attribute) GetAsDateTime() (time.Time, error) {
+	if a.Type != DateTimeType {
+		return time.Time{}, fmt.Errorf("Attribute is not DateTime, but %s", a.Type)
+	}
+	if t, err := time.Parse(time.RFC3339, a.Value.(string)); err != nil {
+		return time.Time{}, err
+	} else {
+		return t, nil
+	}
+}
+
+func (a *Attribute) GetAsGeoPoint() (*GeoPoint, error) {
+	if a.Type != GeoPointType {
+		return nil, fmt.Errorf("Attribute is not GeoPoint, but '%s'", a.Type)
+	}
+	g := new(GeoPoint)
+	if err := g.UnmarshalJSON([]byte(a.Value.(string))); err != nil {
+		return nil, err
+	} else {
+		return g, nil
+	}
 }
 
 func NewBatchUpdate(action ActionType) *BatchUpdate {
