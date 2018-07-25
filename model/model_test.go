@@ -199,3 +199,27 @@ func TestEntityMarshal(t *testing.T) {
 		}
 	}
 }
+
+func TestIsValidString(t *testing.T) {
+	if !model.IsValidString("hi there!") {
+		t.Fatal("String shoud be valid")
+	}
+	if !model.IsValidString("") {
+		t.Fatal("Empty string shoud be valid")
+	}
+	if model.IsValidString("Park (7)") {
+		t.Fatal("String should be invalid")
+	}
+}
+
+func TestSanitizeString(t *testing.T) {
+	if model.SanitizeString("") != "" {
+		t.Fatal("Invalid sanitazion of empty string")
+	}
+	if model.SanitizeString("good string") != "good string" {
+		t.Fatal("Invalid sanitazion of a good string")
+	}
+	if model.SanitizeString("==> That's all, folks <3!") != " Thats all, folks 3!" {
+		t.Fatal("Invalid sanitazion of a nasty string")
+	}
+}

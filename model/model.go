@@ -68,6 +68,10 @@ type BatchUpdate struct {
 	Entities   []*Entity  `json:"entities"`
 }
 
+const (
+	InvalidChars string = `<>"'=;()`
+)
+
 // Creates a new context entity with id and type and no attributes.
 func NewEntity(id string, entityType string) *Entity {
 	e := &Entity{}
@@ -162,7 +166,17 @@ func (e *Entity) GetAttribute(name string) (*Attribute, error) {
 // IsValidString checks whether the string is valid or contains any forbidden character.
 // See: https://github.com/telefonicaid/fiware-orion/blob/master/doc/manuals/user/forbidden_characters.md
 func IsValidString(str string) bool {
-	return !strings.ContainsAny(str, `<>"'=;()`)
+	return !strings.ContainsAny(str, InvalidChars)
+}
+
+// SanitizeString removes any forbidden character from a string.
+func SanitizeString(str string) string {
+	return strings.Map(func(r rune) rune {
+		if strings.IndexRune(InvalidChars, r) < 0 {
+			return r
+		}
+		return -1
+	}, str)
 }
 
 func (e *Entity) SetAttributeAsString(name string, value string) {
