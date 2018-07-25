@@ -159,6 +159,12 @@ func (e *Entity) GetAttribute(name string) (*Attribute, error) {
 	}
 }
 
+// IsValidString checks whether the string is valid or contains any forbidden character.
+// See: https://github.com/telefonicaid/fiware-orion/blob/master/doc/manuals/user/forbidden_characters.md
+func IsValidString(str string) bool {
+	return !strings.ContainsAny(str, `<>"'=;()`)
+}
+
 func (e *Entity) SetAttributeAsString(name string, value string) {
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{

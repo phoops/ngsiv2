@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -79,8 +80,10 @@ func (c *NgsiV2Client) BatchUpdate(msg *model.BatchUpdate) error {
 	if err != nil {
 		return fmt.Errorf("Error invoking batch update: %+v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
