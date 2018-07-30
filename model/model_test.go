@@ -125,13 +125,26 @@ func TestEntityUnmarshal(t *testing.T) {
 }
 
 func TestEntityMarshal(t *testing.T) {
-	office := model.NewEntity("openspace", "Office")
+	if _, err := model.NewEntity("invalid id", "Office"); err == nil {
+		t.Fatal("Invalid id should have risen an error")
+	}
+	if _, err := model.NewEntity("openspace", "Office?"); err == nil {
+		t.Fatal("Invalid entity type should have risen an error")
+	}
+
+	office, err := model.NewEntity("openspace", "Office")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
 	office.SetAttributeAsString("name", "Phoops HQ")
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
 	timeNow := time.Now()
 	office.SetAttributeAsDateTime("lastUpdate", timeNow)
 	gp := model.NewGeoPoint(4.1, 2.3)
 	office.SetAttributeAsGeoPoint("location", gp)
+	if err := office.SetAttributeAsString("not valid", "invalid"); err == nil {
+		t.Fatal("Expected an error for an invalid attribute")
+	}
 
 	bytes, err := json.Marshal(office)
 	if err != nil {
@@ -221,5 +234,61 @@ func TestSanitizeString(t *testing.T) {
 	}
 	if model.SanitizeString("==> That's all, folks <3!") != " Thats all, folks 3!" {
 		t.Fatal("Invalid sanitazion of a nasty string")
+	}
+}
+
+func TestIsValidFieldSyntax(t *testing.T) {
+	if !model.IsValidFieldSyntax("hello") {
+		t.Fatal("Field syntax shoud be valid")
+	}
+	if model.IsValidFieldSyntax("") {
+		t.Fatal("Field syntax shoud not be valid for empty string")
+	}
+	b := make([]byte, 257)
+	for i := range b {
+		b[i] = 'x'
+	}
+	if model.IsValidFieldSyntax(string(b)) {
+		t.Fatal("Field syntax shoud not be valid for a string that is too long")
+	}
+	if !model.IsValidFieldSyntax(string(b[:len(b)-1])) {
+		t.Fatal("Field syntax shoud be valid for a string that is 256 characters long")
+	}
+	if !model.IsValidFieldSyntax("asdkoasdkoas.asd,asd!^asd") {
+		t.Fatal("Field syntax shoud be valid")
+	}
+	if model.IsValidFieldSyntax("a b") {
+		t.Fatal("Field syntax shoud not be valid for a string with whitespaces")
+	}
+	if model.IsValidFieldSyntax("a&b") ||
+		model.IsValidFieldSyntax("a?b") ||
+		model.IsValidFieldSyntax("a/b") ||
+		model.IsValidFieldSyntax("a#b") {
+		t.Fatal("Field syntax shoud not be valid for a string with restricted characters")
+	}
+	if model.IsValidFieldSyntax("a\fb") ||
+		model.IsValidFieldSyntax("a\tb") ||
+		model.IsValidFieldSyntax("a\bb") ||
+		model.IsValidFieldSyntax("a\rb") ||
+		model.IsValidFieldSyntax("a\nb") {
+		t.Fatal("Field syntax shoud not be valid for a string with control characters")
+	}
+}
+
+func TestIsValidAttributeName(t *testing.T) {
+	if !model.IsValidAttributeName("temperature!") {
+		t.Fatalf("Attribute name should be valid")
+	}
+	if model.IsValidAttributeName("not valid") ||
+		model.IsValidAttributeName("temperature?") ||
+		model.IsValidAttributeName("a/b") {
+		t.Fatalf("Attribute name should not be valid")
+	}
+	if model.IsValidAttributeName("id") ||
+		model.IsValidAttributeName("type") ||
+		model.IsValidAttributeName("geo:distance") ||
+		model.IsValidAttributeName("dateCreated") ||
+		model.IsValidAttributeName("dateModified") {
+		t.Fatalf("Attribute name should not be valid")
 	}
 }

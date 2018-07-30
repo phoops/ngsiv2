@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Context entity: a thing in the NGSI model.
@@ -69,16 +70,24 @@ type BatchUpdate struct {
 }
 
 const (
-	InvalidChars string = `<>"'=;()`
+	InvalidChars      string = `<>"'=;()`
+	InvalidFieldChars string = `&?/#` // plus control characters and whitespaces
 )
 
+var ReservedAttrNames = [...]string{"id", "type", "geo:distance", "dateCreated", "dateModified"}
+
 // Creates a new context entity with id and type and no attributes.
-func NewEntity(id string, entityType string) *Entity {
+func NewEntity(id string, entityType string) (*Entity, error) {
+	if err := validateFieldSyntax(id); err != nil {
+		return nil, err
+	} else if err := validateFieldSyntax(entityType); err != nil {
+		return nil, err
+	}
 	e := &Entity{}
 	e.Id = id
 	e.Type = entityType
 	e.Attributes = make(map[string]*Attribute)
-	return e
+	return e, nil
 }
 
 type _entity Entity
@@ -179,49 +188,115 @@ func SanitizeString(str string) string {
 	}, str)
 }
 
-func (e *Entity) SetAttributeAsString(name string, value string) {
+// IsValidFieldSyntax checks whether the field syntax is valid or violates restrictions.
+// See: https://orioncontextbroker.docs.apiary.io/#introduction/specification/field-syntax-restrictions
+func IsValidFieldSyntax(str string) bool {
+	if len(str) < 1 || len(str) > 256 {
+		return false
+	}
+	for _, r := range str {
+		if unicode.IsControl(r) ||
+			unicode.IsSpace(r) ||
+			strings.ContainsRune(InvalidFieldChars, r) {
+			return false
+		}
+	}
+	return true
+}
+
+func validateFieldSyntax(str string) error {
+	if !IsValidFieldSyntax(str) {
+		return fmt.Errorf("'%s': syntax error for field", str)
+	} else {
+		return nil
+	}
+}
+
+// IsValidAttributeName checks whether the attribute name is valid or is forbidden.
+// See: https://orioncontextbroker.docs.apiary.io/#introduction/specification/attribute-names-restrictions
+func IsValidAttributeName(name string) bool {
+	if !IsValidFieldSyntax(name) {
+		return false
+	}
+	for _, reserved := range ReservedAttrNames {
+		if name == reserved {
+			return false
+		}
+	}
+	return true
+}
+
+func validateAttributeName(name string) error {
+	if !IsValidAttributeName(name) {
+		return fmt.Errorf("'%s' is not a valid attribute name", name)
+	} else {
+		return nil
+	}
+}
+
+func (e *Entity) SetAttributeAsString(name string, value string) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  StringType,
 			Value: value,
 		},
 	}
+	return nil
 }
 
-func (e *Entity) SetAttributeAsInteger(name string, value int) {
+func (e *Entity) SetAttributeAsInteger(name string, value int) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  IntegerType,
 			Value: value,
 		},
 	}
+	return nil
 }
 
-func (e *Entity) SetAttributeAsFloat(name string, value float64) {
+func (e *Entity) SetAttributeAsFloat(name string, value float64) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  FloatType,
 			Value: value,
 		},
 	}
+	return nil
 }
 
-func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) {
+func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  DateTimeType,
 			Value: value,
 		},
 	}
+	return nil
 }
 
-func (e *Entity) SetAttributeAsGeoPoint(name string, value *GeoPoint) {
+func (e *Entity) SetAttributeAsGeoPoint(name string, value *GeoPoint) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  GeoPointType,
 			Value: value,
 		},
 	}
+	return nil
 }
 
 func (a *Attribute) GetAsString() (string, error) {
