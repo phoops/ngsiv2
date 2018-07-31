@@ -12,13 +12,19 @@ import (
 	"github.com/phoops/ngsiv2/model"
 )
 
+var apiResourcesHandler = func(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, `{"entities_url":"/v2/entities","types_url":"/v2/types","subscriptions_url":"/v2/subscriptions","registrations_url":"/v2/registrations"}`)
+}
+
 func TestBatchUpdateBadRequest(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
-				fmt.Println(w, `{"error":"ParseError","description":"Errors found in incoming JSON buffer"}`)
+				fmt.Fprintf(w, `{"error":"ParseError","description":"Errors found in incoming JSON buffer"}`)
 			}))
 	defer ts.Close()
 
@@ -54,5 +60,26 @@ func TestBatchUpdateNoContent(t *testing.T) {
 	}
 	if err := cli.BatchUpdate(&model.BatchUpdate{}); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
+	}
+}
+
+func TestRetrieveAPIResources(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(apiResourcesHandler))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if res, err := cli.RetrieveAPIResources(); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if res.EntitiesUrl != "/v2/entities" ||
+			res.TypesUrl != "/v2/types" ||
+			res.SubscriptionsUrl != "/v2/subscriptions" ||
+			res.RegistrationsUrl != "/v2/registrations" {
+			t.Fatal("Failed reading API resources values")
+		}
 	}
 }

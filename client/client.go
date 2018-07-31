@@ -87,3 +87,28 @@ func (c *NgsiV2Client) BatchUpdate(msg *model.BatchUpdate) error {
 	}
 	return nil
 }
+
+// RetrieveAPIResources gives url link values for retrieving resources.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/api-entry-point/retrieve-api-resources/retrieve-api-resources
+func (c *NgsiV2Client) RetrieveAPIResources() (*model.APIResources, error) {
+	req, err := newRequest("GET", fmt.Sprintf("%s/v2", c.url), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
+	}
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Could not retrieve API resources: %+v", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		ret := new(model.APIResources)
+		if err := json.Unmarshal(bodyBytes, ret); err != nil {
+			return nil, fmt.Errorf("Error reading API resources response: %+v", err)
+		} else {
+			return ret, nil
+		}
+	}
+}

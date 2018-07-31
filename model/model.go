@@ -64,6 +64,13 @@ type GeoPoint struct {
 	Longitude float64
 }
 
+type APIResources struct {
+	EntitiesUrl      string `json:"entities_url"`
+	TypesUrl         string `json:"types_url"`
+	SubscriptionsUrl string `json:"subscriptions_url"`
+	RegistrationsUrl string `json:"registrations_url"`
+}
+
 type BatchUpdate struct {
 	ActionType ActionType `json:"actionType"`
 	Entities   []*Entity  `json:"entities"`
