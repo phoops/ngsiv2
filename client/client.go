@@ -191,7 +191,9 @@ func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamF
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
 	q := req.URL.Query()
-	q.Add("type", params.entityType)
+	if params.entityType != "" {
+		q.Add("type", params.entityType)
+	}
 	var attributes string
 	for _, a := range params.attrs {
 		if len(attributes) > 0 {
