@@ -65,7 +65,6 @@ func newRequest(method, url string, body io.Reader) (*http.Request, error) {
 	}
 	req.Header.Add("User-Agent", "ngsiv2-client")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
 	return req, nil
 }
 
@@ -78,6 +77,7 @@ func (c *NgsiV2Client) BatchUpdate(msg *model.BatchUpdate) error {
 	if err != nil {
 		return fmt.Errorf("Could not create request for batch update: %+v", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
 	resp, err := c.c.Do(req)
 	if err != nil {
 		return fmt.Errorf("Error invoking batch update: %+v", err)

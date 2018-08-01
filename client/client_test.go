@@ -88,12 +88,14 @@ func TestRetrieveEntity(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				fmt.Printf("XYZ:\n%+v\nZYX\n", r)
 				if strings.HasSuffix(r.URL.Path, "/v2") {
 					apiResourcesHandler(w, r)
 				} else {
 					if r.Header.Get("Accept") != "application/json" {
 						t.Fatal("Missing application/json accept header")
+					}
+					if r.Header.Get("Content-Type") != "" {
+						t.Fatal("No Content-Type allowed for GET request")
 					}
 					if !strings.HasSuffix(r.URL.Path, "/r1") {
 						t.Fatal("Expected 'r1' as id")
