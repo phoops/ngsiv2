@@ -16,6 +16,7 @@ type NgsiV2Client struct {
 	c       *http.Client
 	url     string
 	timeout time.Duration
+	apiRes  *model.APIResources
 }
 
 // ClientOptionFunc is a function that configures a NgsiV2Client.
@@ -49,6 +50,7 @@ func SetClientTimeout(timeout time.Duration) ClientOptionFunc {
 	}
 }
 
+// SetUrl is used to set client URL.
 func SetUrl(url string) ClientOptionFunc {
 	return func(c *NgsiV2Client) error {
 		c.url = url
@@ -107,6 +109,119 @@ func (c *NgsiV2Client) RetrieveAPIResources() (*model.APIResources, error) {
 		ret := new(model.APIResources)
 		if err := json.Unmarshal(bodyBytes, ret); err != nil {
 			return nil, fmt.Errorf("Error reading API resources response: %+v", err)
+		} else {
+			return ret, nil
+		}
+	}
+}
+
+func (c *NgsiV2Client) getEntitiesUrl() (string, error) {
+	if c.apiRes == nil {
+		var err error
+		if c.apiRes, err = c.RetrieveAPIResources(); err != nil {
+			return "", err
+		}
+	}
+	return fmt.Sprintf("%s%s", c.url, c.apiRes.EntitiesUrl), nil
+}
+
+type retrieveEntityParams struct {
+	id         string
+	entityType string
+	attrs      []string
+	options    model.SimplifiedEntityRepresentation
+}
+
+type RetrieveEntityParamFunc func(*retrieveEntityParams) error
+
+func RetrieveEntitySetType(entityType string) RetrieveEntityParamFunc {
+	return func(p *retrieveEntityParams) error {
+		if !model.IsValidFieldSyntax(entityType) {
+			return fmt.Errorf("'%s' is not a valid entity type name", entityType)
+		}
+		p.entityType = entityType
+		return nil
+	}
+}
+
+func RetrieveEntityAddAttribute(attr string) RetrieveEntityParamFunc {
+	return func(p *retrieveEntityParams) error {
+		if !model.IsValidAttributeName(attr) {
+			return fmt.Errorf("'%s' is not a valid attribute name", attr)
+		}
+		p.attrs = append(p.attrs, attr)
+		return nil
+	}
+}
+
+func RetrieveEntitySetOptions(opts model.SimplifiedEntityRepresentation) RetrieveEntityParamFunc {
+	return func(p *retrieveEntityParams) error {
+		if opts != "" {
+			return fmt.Errorf("Simplified entity representation is not supported yet!")
+		} else {
+			return nil
+		}
+	}
+}
+
+// RetrieveEntity retrieves an object representing the entity identified by the given id.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/entities/entity-by-id/retrieve-entity
+func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamFunc) (*model.Entity, error) {
+	if id == "" {
+		return nil, fmt.Errorf("Cannot retrieve entity with empty 'id'")
+	}
+
+	params := new(retrieveEntityParams)
+	params.id = id
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return nil, err
+		}
+	}
+
+	eUrl, err := c.getEntitiesUrl()
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := newRequest("GET", fmt.Sprintf("%s/%s", eUrl, params.id), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
+	}
+	q := req.URL.Query()
+	q.Add("type", params.entityType)
+	var attributes string
+	for _, a := range params.attrs {
+		if len(attributes) > 0 {
+			attributes += ","
+		}
+		attributes += a
+	}
+	if len(attributes) > 0 {
+		q.Add("attrs", attributes)
+	}
+	if params.options != "" {
+		q.Add("options", string(params.options))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Could not retrieve entity: %+v", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusConflict {
+		return nil, fmt.Errorf("Conflict (id non-unique?).\nResponse body: %s", string(bodyBytes))
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		ret := new(model.Entity)
+		if err := json.Unmarshal(bodyBytes, ret); err != nil {
+			return nil, fmt.Errorf("Error reading retrieve entity response: %+v", err)
 		} else {
 			return ret, nil
 		}

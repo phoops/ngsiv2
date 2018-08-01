@@ -83,6 +83,17 @@ const (
 
 var ReservedAttrNames = [...]string{"id", "type", "geo:distance", "dateCreated", "dateModified"}
 
+// SimplifiedEntityRepresentation are representation modes to generate simplified
+// representations of entitites.
+// See: https://orioncontextbroker.docs.apiary.io/#introduction/specification/simplified-entity-representation
+type SimplifiedEntityRepresentation string
+
+const (
+	KeyValuesRepresentation SimplifiedEntityRepresentation = "keyValues"
+	ValuesRepresentation    SimplifiedEntityRepresentation = "values"
+	UniqueRepresentation    SimplifiedEntityRepresentation = "unique"
+)
+
 // Creates a new context entity with id and type and no attributes.
 func NewEntity(id string, entityType string) (*Entity, error) {
 	if err := validateFieldSyntax(id); err != nil {
