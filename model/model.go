@@ -92,7 +92,97 @@ const (
 	KeyValuesRepresentation SimplifiedEntityRepresentation = "keyValues"
 	ValuesRepresentation    SimplifiedEntityRepresentation = "values"
 	UniqueRepresentation    SimplifiedEntityRepresentation = "unique"
+	CountRepresentation     SimplifiedEntityRepresentation = "count"
 )
+
+type SimpleLocationFormatGeometry string
+
+const (
+	SLFPoint   SimpleLocationFormatGeometry = "point"
+	SLFLine    SimpleLocationFormatGeometry = "line"
+	SLFPolygon SimpleLocationFormatGeometry = "polygon"
+	SLFBox     SimpleLocationFormatGeometry = "box"
+)
+
+type GeospatialRelationship string
+
+const (
+	GeorelNear       GeospatialRelationship = "near"
+	GeorelCoveredBy  GeospatialRelationship = "coveredBy"
+	GeorelIntersects GeospatialRelationship = "intersects"
+	GeorelEquals     GeospatialRelationship = "equals"
+	GeorelDisjoint   GeospatialRelationship = "disjoint"
+)
+
+type GeorelModifier string
+
+func GeorelModifierMaxDistance(maxDistance float64) GeorelModifier {
+	return GeorelModifier(fmt.Sprintf("maxDistance:%v", maxDistance))
+}
+
+func GeorelModifierMinDistance(minDistance float64) GeorelModifier {
+	return GeorelModifier(fmt.Sprintf("minDistance:%v", minDistance))
+}
+
+type SimpleQueryOperator string
+
+const (
+	SQEqual              SimpleQueryOperator = "=="
+	SQUnequal            SimpleQueryOperator = "!="
+	SQGreaterThan        SimpleQueryOperator = ">"
+	SQLessThan           SimpleQueryOperator = "<"
+	SQGreaterOrEqualThan SimpleQueryOperator = ">="
+	SQLessOrEqualThan    SimpleQueryOperator = "<="
+	SQMatchPattern       SimpleQueryOperator = "~="
+)
+
+type SimpleQueryStatement string
+
+func NewBinarySimpleQueryStatement(attr string, operator SimpleQueryOperator, value string) (SimpleQueryStatement, error) {
+	if !IsValidAttributeName(attr) {
+		return "", fmt.Errorf("'%s' is not a valid attribute name", attr)
+	}
+	quotedValue := value
+	if operator == SQEqual || operator == SQUnequal {
+		quotedValue = quoteIfComma(value)
+	}
+	return SimpleQueryStatement(fmt.Sprintf("%s%s%s", attr, operator, quotedValue)), nil
+}
+
+func NewBinarySimpleQueryStatementMultipleValues(attr string, operator SimpleQueryOperator, values ...string) (SimpleQueryStatement, error) {
+	if !IsValidAttributeName(attr) {
+		return "", fmt.Errorf("'%s' is not a valid attribute name", attr)
+	}
+	if len(values) == 0 {
+		return "", fmt.Errorf("Cannot create simple query statement without values")
+	}
+	if operator != SQEqual && operator != SQUnequal {
+		return "", fmt.Errorf("Multiple values are only permitted for equal or unequal operators")
+	}
+	var quotedValues = make([]string, len(values))
+	for i, v := range values {
+		quotedValues[i] = quoteIfComma(v)
+	}
+	return SimpleQueryStatement(fmt.Sprintf("%s%s%s", attr, operator, strings.Join(quotedValues, ","))), nil
+}
+
+func NewBinarySimpleQueryStatementRange(attr string, operator SimpleQueryOperator, minimum string, maximum string) (SimpleQueryStatement, error) {
+	if !IsValidAttributeName(attr) {
+		return "", fmt.Errorf("'%s' is not a valid attribute name", attr)
+	}
+	if operator != SQEqual && operator != SQUnequal {
+		return "", fmt.Errorf("Range is only permitted for equal or unequal operators")
+	}
+	return SimpleQueryStatement(fmt.Sprintf("%s%s%s..%s", attr, operator, quoteIfComma(minimum), quoteIfComma(maximum))), nil
+}
+
+func quoteIfComma(str string) string {
+	if strings.Contains(str, ",") {
+		return "'" + str + "'"
+	} else {
+		return str
+	}
+}
 
 // Creates a new context entity with id and type and no attributes.
 func NewEntity(id string, entityType string) (*Entity, error) {
