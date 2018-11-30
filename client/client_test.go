@@ -328,7 +328,7 @@ func TestUpdateSubscriptionNotFound(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 	et := time.Now()
-	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &et}); err == nil {
+	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &model.OrionTime{et}}); err == nil {
 		t.Fatal("Expected an error")
 	}
 }
@@ -350,7 +350,7 @@ func TestUpdateSubscriptionNoContent(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 	et := time.Now()
-	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &et}); err != nil {
+	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &model.OrionTime{et}}); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 }
@@ -428,7 +428,7 @@ func TestRetrieveSubscriptions(t *testing.T) {
 			t.Fatalf("Expected 1 subscription, got %d", len(res.Subscriptions))
 		} else {
 			if res.Subscriptions[0].Status != "expired" ||
-				(*(res.Subscriptions[0].Subject.Entities))[0].Type != "Room" {
+				res.Subscriptions[0].Subject.Entities[0].Type != "Room" {
 				t.Fatal("Invalid subscription retrieved")
 			}
 		}

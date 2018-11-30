@@ -76,50 +76,77 @@ type BatchUpdate struct {
 	Entities   []*Entity  `json:"entities"`
 }
 
-type Subscription struct {
+type SubscriptionSubjectEntity struct {
 	Id          string `json:"id,omitempty"`
-	Description string `json:"description,omitempty"`
-	Subject     *struct {
-		Entities *[]struct {
-			Id          string `json:"id,omitempty"`
-			IdPattern   string `json:"idPattern,omitempty"`
-			Type        string `json:"type,omitempty"`
-			TypePattern string `json:"typePattern,omitempty"`
-		} `json:"entities,omitempty"`
-		Condition *struct {
-			Attrs      []string `json:"attrs,omitempty"`
-			Expression *struct {
-				Q        string `json:"q,omitempty"`
-				Mq       string `json:"mq,omitempty"`
-				Georel   string `json:"georel,omitempty"`
-				Geometry string `json:"geometry,omitempty"`
-				Coords   string `json:"coords,omitempty"`
-			} `json:"expression,omitempty"`
-		} `json:"condition,omitempty"`
-	} `json:"subject,omitempty"`
-	Notification *struct {
-		Attrs       []string `json:"attrs,omitempty"`
-		ExceptAttrs []string `json:"exceptAttrs,omitempty"`
-		Http        *struct {
-			Url string `json:"url"`
-		} `json:"http,omitempty"`
-		HttpCustom *struct {
-			Url     string            `json:"url"`
-			Headers map[string]string `json:"headers,omitempty"`
-			Qs      map[string]string `json:"qs,omitempty"`
-			Method  string            `json:"method,omitempty"`
-			Payload string            `json:"payload,omitempty"`
-		} `json:"httpCustom,omitempty"`
-		AttrsFormat      string     `json:"attrsFormat,omitempty"`
-		Metadata         []string   `json:"metadata,omitempty"`
-		TimesSent        uint       `json:"timesSent,omitempty"`
-		LastNotification *time.Time `json:"lastNotification,omitempty"`
-		LastFailure      *time.Time `json:"lastFailure,omitempty"`
-		LastSuccess      *time.Time `json:"lastSuccess,omitempty"`
-	} `json:"notification,omitempty"`
-	Expires    *time.Time         `json:"expires,omitempty"`
-	Status     SubscriptionStatus `json:"status,omitempty"`
-	Throttling uint               `json:"throttling,omitempty"`
+	IdPattern   string `json:"idPattern,omitempty"`
+	Type        string `json:"type,omitempty"`
+	TypePattern string `json:"typePattern,omitempty"`
+}
+
+type SubscriptionSubjectConditionExpression struct {
+	Q        string `json:"q,omitempty"`
+	Mq       string `json:"mq,omitempty"`
+	Georel   string `json:"georel,omitempty"`
+	Geometry string `json:"geometry,omitempty"`
+	Coords   string `json:"coords,omitempty"`
+}
+
+type SubscriptionSubjectCondition struct {
+	Attrs      []string                                `json:"attrs,omitempty"`
+	Expression *SubscriptionSubjectConditionExpression `json:"expression,omitempty"`
+}
+
+type SubscriptionSubject struct {
+	Entities  []*SubscriptionSubjectEntity  `json:"entities,omitempty"`
+	Condition *SubscriptionSubjectCondition `json:"condition,omitempty"`
+}
+
+type SubscriptionNotificationHttp struct {
+	Url string `json:"url"`
+}
+
+type SubscriptionNotificationHttpCustom struct {
+	Url     string            `json:"url"`
+	Headers map[string]string `json:"headers,omitempty"`
+	Qs      map[string]string `json:"qs,omitempty"`
+	Method  string            `json:"method,omitempty"`
+	Payload string            `json:"payload,omitempty"`
+}
+
+type SubscriptionNotification struct {
+	Attrs            []string                            `json:"attrs,omitempty"`
+	ExceptAttrs      []string                            `json:"exceptAttrs,omitempty"`
+	Http             *SubscriptionNotificationHttp       `json:"http,omitempty"`
+	HttpCustom       *SubscriptionNotificationHttpCustom `json:"httpCustom,omitempty"`
+	AttrsFormat      string                              `json:"attrsFormat,omitempty"`
+	Metadata         []string                            `json:"metadata,omitempty"`
+	TimesSent        uint                                `json:"timesSent,omitempty"`
+	LastNotification *time.Time                          `json:"lastNotification,omitempty"`
+	LastFailure      *time.Time                          `json:"lastFailure,omitempty"`
+	LastSuccess      *time.Time                          `json:"lastSuccess,omitempty"`
+}
+
+type OrionTime struct {
+	time.Time
+}
+
+func (t OrionTime) MarshalJSON() ([]byte, error) {
+	if y := t.Year(); y < 0 || y >= 10000 {
+		// RFC 3339 is clear that years are 4 digits exactly.
+		// See golang.org/issue/4556#c15 for more discussion.
+		return nil, fmt.Errorf("OrionTime.MarshalJSON: year outside of range [0,9999] ('%d')", y)
+	}
+	return []byte(t.Format(`"2006-01-02T15:04:05.999Z07:00"`)), nil
+}
+
+type Subscription struct {
+	Id           string                    `json:"id,omitempty"`
+	Description  string                    `json:"description,omitempty"`
+	Subject      *SubscriptionSubject      `json:"subject,omitempty"`
+	Notification *SubscriptionNotification `json:"notification,omitempty"`
+	Expires      *OrionTime                `json:"expires,omitempty"`
+	Status       SubscriptionStatus        `json:"status,omitempty"`
+	Throttling   uint                      `json:"throttling,omitempty"`
 }
 
 type SubscriptionStatus string
