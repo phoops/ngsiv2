@@ -304,7 +304,7 @@ func ListEntitiesSetLimit(limit int) ListEntitiesParamFunc {
 
 func ListEntitiesSetOffset(offset int) ListEntitiesParamFunc {
 	return func(p *listEntitiesParams) error {
-		if offset <= 0 {
+		if offset < 0 {
 			return fmt.Errorf("offset cannot be less than 0")
 		}
 		p.offset = offset
