@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/phoops/ngsiv2/client"
 	"github.com/phoops/ngsiv2/model"
@@ -177,6 +178,259 @@ func TestRetrieveEntities(t *testing.T) {
 			res[1].Type != "Room" ||
 			res[1].Attributes["temperature"].Type != model.FloatType {
 			t.Fatal("Invalid entities retrieved")
+		}
+	}
+}
+
+func TestCreateSubscriptionBadRequest(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					fmt.Fprintf(w, `{"error":"BadRequest","description":"no subject for subscription specified"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if subId, err := cli.CreateSubscription(&model.Subscription{Description: "quite empty"}); err == nil {
+		t.Fatal("Expected an error")
+	} else if subId != "" {
+		t.Fatalf("Subscription id should be empty, got '%s' instead", subId)
+	}
+}
+
+func TestCreateSubscriptionCreated(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Location", "/v2/subscriptions/abcde12345")
+					w.WriteHeader(http.StatusCreated)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if subId, err := cli.CreateSubscription(&model.Subscription{Description: "quite empty, but we pretend it's ok"}); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if subId != "abcde12345" {
+		t.Fatalf("Subscription id should be abcde12345, got '%s' instead", subId)
+	}
+}
+
+func TestRetrieveSubscriptionNotFound(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprintf(w, `{"error":"NotFound","description":"The requested subscription has not been found. Check id"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if sub, err := cli.RetrieveSubscription("123456789012345678901234"); err == nil {
+		t.Fatal("Expected an error")
+	} else if sub != nil {
+		t.Fatalf("Subscription should be nil, got '%+v' instead", sub)
+	}
+}
+
+func TestRetrieveSubscriptionOk(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprintf(w, `{
+  "id": "abcdef",
+  "description": "One subscription to rule them all",
+  "subject": {
+    "entities": [
+      {
+        "idPattern": ".*",
+        "type": "Room"
+      }
+    ],
+    "condition": {
+      "attrs": [ "temperature" ],
+      "expression": {
+        "q": "temperature>40"
+      }
+    }
+  },
+  "notification": {
+    "http": {
+      "url": "http://localhost:1234"
+    },
+    "attrs": ["temperature", "humidity"],
+    "timesSent": 12,
+    "lastNotification": "2015-10-05T16:00:00.00Z"
+  },
+  "expires": "2016-04-05T14:00:00.00Z",
+  "status": "active",
+  "throttling": 5
+}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if sub, err := cli.RetrieveSubscription("abcdef"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if sub.Subject.Condition.Attrs[0] != "temperature" {
+		t.Fatalf("Unexpected retrieved subscription, got '%+v'", sub)
+	}
+}
+
+func TestUpdateSubscriptionNotFound(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprintf(w, `{"error":"No context element found","description":"subscription id not found"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	et := time.Now()
+	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &et}); err == nil {
+		t.Fatal("Expected an error")
+	}
+}
+
+func TestUpdateSubscriptionNoContent(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.WriteHeader(http.StatusNoContent)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	et := time.Now()
+	if err := cli.UpdateSubscription("abcde12345", &model.Subscription{Expires: &et}); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+}
+
+func TestDeleteSubscriptionNotFound(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprintf(w, `{"error":"NotFound","description":"The requested subscription has not been found. Check id"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if err := cli.DeleteSubscription("abcde12345"); err == nil {
+		t.Fatal("Expected an error")
+	}
+}
+
+func TestDeleteSubscriptionNoContent(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.WriteHeader(http.StatusNoContent)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if err := cli.DeleteSubscription("abcde12345"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+}
+
+func TestRetrieveSubscriptions(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.URL.Query().Get("limit") != "50" {
+						t.Fatalf("Expected a limit value of '50', got '%s'", r.URL.Query().Get("limit"))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `[{"id":"5c001e0b8ecef47022068b21","description":"One subscription to rule them all","expires":"2016-04-05T14:00:00.00Z","status":"expired","subject":{"entities":[{"idPattern":".*","type":"Room"}],"condition":{"attrs":["temperature"],"expression":{"q":"temperature>40"}}},"notification":{"attrs":["temperature","humidity"],"attrsFormat":"normalized","http":{"url":"http://localhost:1234"}},"throttling":5}]`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if res, err := cli.RetrieveSubscriptions(client.RetrieveSubscriptionsSetLimit(50)); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if len(res.Subscriptions) != 1 {
+			t.Fatalf("Expected 1 subscription, got %d", len(res.Subscriptions))
+		} else {
+			if res.Subscriptions[0].Status != "expired" ||
+				(*(res.Subscriptions[0].Subject.Entities))[0].Type != "Room" {
+				t.Fatal("Invalid subscription retrieved")
+			}
 		}
 	}
 }

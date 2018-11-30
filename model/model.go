@@ -76,6 +76,61 @@ type BatchUpdate struct {
 	Entities   []*Entity  `json:"entities"`
 }
 
+type Subscription struct {
+	Id          string `json:"id,omitempty"`
+	Description string `json:"description,omitempty"`
+	Subject     *struct {
+		Entities *[]struct {
+			Id          string `json:"id,omitempty"`
+			IdPattern   string `json:"idPattern,omitempty"`
+			Type        string `json:"type,omitempty"`
+			TypePattern string `json:"typePattern,omitempty"`
+		} `json:"entities,omitempty"`
+		Condition *struct {
+			Attrs      []string `json:"attrs,omitempty"`
+			Expression *struct {
+				Q        string `json:"q,omitempty"`
+				Mq       string `json:"mq,omitempty"`
+				Georel   string `json:"georel,omitempty"`
+				Geometry string `json:"geometry,omitempty"`
+				Coords   string `json:"coords,omitempty"`
+			} `json:"expression,omitempty"`
+		} `json:"condition,omitempty"`
+	} `json:"subject,omitempty"`
+	Notification *struct {
+		Attrs       []string `json:"attrs,omitempty"`
+		ExceptAttrs []string `json:"exceptAttrs,omitempty"`
+		Http        *struct {
+			Url string `json:"url"`
+		} `json:"http,omitempty"`
+		HttpCustom *struct {
+			Url     string            `json:"url"`
+			Headers map[string]string `json:"headers,omitempty"`
+			Qs      map[string]string `json:"qs,omitempty"`
+			Method  string            `json:"method,omitempty"`
+			Payload string            `json:"payload,omitempty"`
+		} `json:"httpCustom,omitempty"`
+		AttrsFormat      string     `json:"attrsFormat,omitempty"`
+		Metadata         []string   `json:"metadata,omitempty"`
+		TimesSent        uint       `json:"timesSent,omitempty"`
+		LastNotification *time.Time `json:"lastNotification,omitempty"`
+		LastFailure      *time.Time `json:"lastFailure,omitempty"`
+		LastSuccess      *time.Time `json:"lastSuccess,omitempty"`
+	} `json:"notification,omitempty"`
+	Expires    *time.Time         `json:"expires,omitempty"`
+	Status     SubscriptionStatus `json:"status,omitempty"`
+	Throttling uint               `json:"throttling,omitempty"`
+}
+
+type SubscriptionStatus string
+
+const (
+	SubscriptionActive   SubscriptionStatus = "active"
+	SubscriptionInactive SubscriptionStatus = "inactive"
+	SubscriptionExpired  SubscriptionStatus = "expired"
+	SubscriptionFailed   SubscriptionStatus = "failed"
+)
+
 const (
 	InvalidChars      string = `<>"'=;()`
 	InvalidFieldChars string = `&?/#` // plus control characters and whitespaces

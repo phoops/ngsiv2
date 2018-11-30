@@ -128,6 +128,16 @@ func (c *NgsiV2Client) getEntitiesUrl() (string, error) {
 	return fmt.Sprintf("%s%s", c.url, c.apiRes.EntitiesUrl), nil
 }
 
+func (c *NgsiV2Client) getSubscriptionsUrl() (string, error) {
+	if c.apiRes == nil {
+		var err error
+		if c.apiRes, err = c.RetrieveAPIResources(); err != nil {
+			return "", err
+		}
+	}
+	return fmt.Sprintf("%s%s", c.url, c.apiRes.SubscriptionsUrl), nil
+}
+
 type retrieveEntityParams struct {
 	id         string
 	entityType string
@@ -444,4 +454,225 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 		}
 	}
 	return nil, nil
+}
+
+// CreateSubscription creates a new subscription to the context broker.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-list/create-a-new-subscription
+func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription) (string, error) {
+	jsonValue, err := json.Marshal(subscription)
+	if err != nil {
+		return "", fmt.Errorf("Could not serialize subscription: %+v", err)
+	}
+
+	sUrl, err := c.getSubscriptionsUrl()
+	if err != nil {
+		return "", err
+	}
+	req, err := newRequest("POST", sUrl, bytes.NewBuffer(jsonValue))
+	if err != nil {
+		return "", fmt.Errorf("Could not create request for subscription creation: %+v", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Error invoking create subscription: %+v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return strings.TrimPrefix(resp.Header.Get("Location"), c.apiRes.SubscriptionsUrl+"/"), nil
+}
+
+// RetrieveSubscription retrieves a subscription identified by the given id.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-by-id/retrieve-subscription
+func (c *NgsiV2Client) RetrieveSubscription(id string) (*model.Subscription, error) {
+	if id == "" {
+		return nil, fmt.Errorf("Cannot retrieve subscription with empty 'id'")
+	}
+
+	sUrl, err := c.getSubscriptionsUrl()
+	if err != nil {
+		return nil, err
+	}
+	req, err := newRequest("GET", fmt.Sprintf("%s/%s", sUrl, id), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create request for subscription retrieval: %+v", err)
+	}
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Could not retrieve subscription: %+v", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		ret := new(model.Subscription)
+		if err := json.Unmarshal(bodyBytes, ret); err != nil {
+			return nil, fmt.Errorf("Error reading retrieve subscription response: %+v", err)
+		} else {
+			return ret, nil
+		}
+	}
+}
+
+type retrieveSubscriptionsParams struct {
+	limit   int
+	offset  int
+	options string
+}
+
+type RetrieveSubscriptionsParamFunc func(*retrieveSubscriptionsParams) error
+
+func RetrieveSubscriptionsSetLimit(limit int) RetrieveSubscriptionsParamFunc {
+	return func(p *retrieveSubscriptionsParams) error {
+		if limit <= 0 {
+			return fmt.Errorf("limit cannot be less than or equal 0")
+		}
+		p.limit = limit
+		return nil
+	}
+}
+
+func RetrieveSubscriptionsSetOffset(offset int) RetrieveSubscriptionsParamFunc {
+	return func(p *retrieveSubscriptionsParams) error {
+		if offset < 0 {
+			return fmt.Errorf("offset cannot be less than or equal 0")
+		}
+		p.offset = offset
+		return nil
+	}
+}
+
+func RetrieveSubscriptionsSetOptions(options string) RetrieveSubscriptionsParamFunc {
+	return func(p *retrieveSubscriptionsParams) error {
+		if options != "" && options != "count" {
+			return fmt.Errorf("Invalid value for options param")
+		}
+		p.options = options
+		return nil
+	}
+}
+
+type SubscriptionsResponse struct {
+	Count         int
+	Subscriptions []*model.Subscription
+}
+
+// RetrieveSubscriptions returs the subscriptions present in the system.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-list/retrieve-subscriptions
+func (c *NgsiV2Client) RetrieveSubscriptions(options ...RetrieveSubscriptionsParamFunc) (*SubscriptionsResponse, error) {
+	params := new(retrieveSubscriptionsParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return nil, err
+		}
+	}
+
+	sUrl, err := c.getSubscriptionsUrl()
+	if err != nil {
+		return nil, err
+	}
+	req, err := newRequest("GET", sUrl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create request for subscriptions retrieval: %+v", err)
+	}
+	q := req.URL.Query()
+	if params.limit > 0 {
+		q.Add("limit", strconv.Itoa(params.limit))
+	}
+	if params.offset > 0 {
+		q.Add("offset", strconv.Itoa(params.offset))
+	}
+	if params.options != "" {
+		q.Add("options", string(params.options))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Could not retrieve subscriptions: %+v", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		var subs []*model.Subscription
+		if err := json.Unmarshal(bodyBytes, &subs); err != nil {
+			return nil, fmt.Errorf("Error reading retrieve subscriptions response: %+v", err)
+		} else {
+			ret := new(SubscriptionsResponse)
+			ret.Subscriptions = subs
+			if c, err := strconv.Atoi(resp.Header.Get("Fiware-Total-Count")); err != nil {
+				ret.Count = c
+			}
+			return ret, nil
+		}
+	}
+}
+
+// UpdateSubscription updates a subscription identified by the given id with the field specified in the request.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-by-id/update-subscription
+func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Subscription) error {
+	if id == "" {
+		return fmt.Errorf("Cannot update subscription with empty 'id'")
+	}
+
+	jsonValue, err := json.Marshal(patchSubscription)
+	if err != nil {
+		return fmt.Errorf("Could not serialize subscription: %+v", err)
+	}
+
+	sUrl, err := c.getSubscriptionsUrl()
+	if err != nil {
+		return err
+	}
+	req, err := newRequest("PATCH", fmt.Sprintf("%s/%s", sUrl, id), bytes.NewBuffer(jsonValue))
+	if err != nil {
+		return fmt.Errorf("Could not create request for subscription updating: %+v", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return fmt.Errorf("Error invoking update subscription: %+v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return nil
+}
+
+// DeleteSubscription cancels a subscription identified by the given id.
+// See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-by-id/delete-subscription
+func (c *NgsiV2Client) DeleteSubscription(id string) error {
+	if id == "" {
+		return fmt.Errorf("Cannot delete subscription with empty 'id'")
+	}
+
+	sUrl, err := c.getSubscriptionsUrl()
+	if err != nil {
+		return err
+	}
+	req, err := newRequest("DELETE", fmt.Sprintf("%s/%s", sUrl, id), nil)
+	if err != nil {
+		return fmt.Errorf("Could not create request for subscription deletion: %+v", err)
+	}
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return fmt.Errorf("Error invoking delete subscription: %+v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return nil
 }
