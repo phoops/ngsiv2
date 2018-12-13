@@ -274,6 +274,19 @@ func ListEntitiesSetId(id string) ListEntitiesParamFunc {
 	}
 }
 
+func ListEntitiesSetIds(ids []string) ListEntitiesParamFunc {
+	return func(p *listEntitiesParams) error {
+		for _, id := range ids {
+			if !model.IsValidFieldSyntax(id) {
+				return fmt.Errorf("'%s' is not a valid entity id", id)
+			}
+		}
+		p.id = strings.Join(ids, ",")
+		return nil
+
+	}
+}
+
 func ListEntitiesSetIdPattern(idPattern string) ListEntitiesParamFunc {
 	return func(p *listEntitiesParams) error {
 		if _, err := regexp.Compile(idPattern); err != nil {
