@@ -337,8 +337,10 @@ func ListEntitiesSetOffset(offset int) ListEntitiesParamFunc {
 
 func ListEntitiesAddOrderBy(attr string, ascending bool) ListEntitiesParamFunc {
 	return func(p *listEntitiesParams) error {
-		if !model.IsValidAttributeName(attr) {
-			return fmt.Errorf("'%s' is not a valid attribute name", attr)
+		if attr != "geo:distance" {
+			if !model.IsValidAttributeName(attr) {
+				return fmt.Errorf("'%s' is not a valid attribute name", attr)
+			}
 		}
 		if ascending {
 			p.orderBy = append(p.orderBy, attr)
