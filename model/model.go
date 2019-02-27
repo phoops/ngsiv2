@@ -424,6 +424,19 @@ func validateAttributeName(name string) error {
 	}
 }
 
+func (e *Entity) SetAttribute(name string, typ AttributeType, value string) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  typ,
+			Value: value,
+		},
+	}
+	return nil
+}
+
 func (e *Entity) SetAttributeAsString(name string, value string) error {
 	if err := validateAttributeName(name); err != nil {
 		return err

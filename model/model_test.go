@@ -32,6 +32,15 @@ func TestEntityUnmarshal(t *testing.T) {
 			"type": "DateTime",
 			"value": "2018-07-24T07:21:24.238Z"
 		},
+		"roomDimensions": {
+			"metadata": {},
+			"type": "RoomDimensions",
+			"value": {
+				"width": 5,
+				"height": 5,
+				"depth": 5
+			}
+		},
 		"type": "Room"
 	}
 `
@@ -119,6 +128,14 @@ func TestEntityUnmarshal(t *testing.T) {
 			if lastUpdateVal.Day() != 24 || lastUpdateVal.Minute() != 21 {
 				t.Fatalf("Unexpected value reading lastUpdate")
 			}
+		}
+	}
+
+	if roomDimensions, err := roomEntity.GetAttribute("roomDimensions"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if roomDimensions.Type != model.AttributeType("RoomDimensions") {
+			t.Fatalf("Expected '%s' for lastUpdate attribute type, got '%s'", "RoomDimensions", roomDimensions.Type)
 		}
 	}
 
