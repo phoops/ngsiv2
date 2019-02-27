@@ -424,7 +424,7 @@ func validateAttributeName(name string) error {
 	}
 }
 
-func (e *Entity) SetAttribute(name string, typ AttributeType, value string) error {
+func (e *Entity) SetAttribute(name string, typ AttributeType, value interface{}) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
 	}
