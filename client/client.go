@@ -468,7 +468,6 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 			return ret, nil
 		}
 	}
-	return nil, nil
 }
 
 // CreateSubscription creates a new subscription to the context broker.

@@ -244,13 +244,13 @@ func TestIsValidString(t *testing.T) {
 
 func TestSanitizeString(t *testing.T) {
 	if model.SanitizeString("") != "" {
-		t.Fatal("Invalid sanitazion of empty string")
+		t.Fatal("Invalid sanitization of empty string")
 	}
 	if model.SanitizeString("good string") != "good string" {
-		t.Fatal("Invalid sanitazion of a good string")
+		t.Fatal("Invalid sanitization of a good string")
 	}
 	if model.SanitizeString("==> That's all, folks <3!") != " Thats all, folks 3!" {
-		t.Fatal("Invalid sanitazion of a nasty string")
+		t.Fatal("Invalid sanitization of a nasty string")
 	}
 }
 

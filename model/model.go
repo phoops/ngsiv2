@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-// Context entity: a thing in the NGSI model.
+// Entity is a context entity, i.e. a thing in the NGSI model.
 type Entity struct {
 	Id         string                `json:"id"`
 	Type       string                `json:"type,omitempty"`
@@ -23,13 +23,13 @@ type typeValue struct {
 	Value interface{}   `json:"value"`
 }
 
-// Context attribute: property of a context entity.
+// Attribute is a Context attribute, i.e. a property of a context entity.
 type Attribute struct {
 	typeValue
 	Metadata map[string]*Metadata `json:"metadata,omitempty"`
 }
 
-// Context metadata: an optional part of the attribute.
+// Metadata is a Context metadata, i.e. an optional part of the attribute.
 type Metadata struct {
 	typeValue
 }
