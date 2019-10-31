@@ -182,6 +182,118 @@ func TestRetrieveEntities(t *testing.T) {
 	}
 }
 
+func TestCreateEntityBadRequest(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					fmt.Fprintf(w, `{"error":"BadRequest","description":"entity id length: 0, min length supported: 1"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if _, _, err := cli.CreateEntity(&model.Entity{}); err == nil {
+		t.Fatal("Expected an error")
+	}
+}
+
+func sampleEntity() *model.Entity {
+	e, _ := model.NewEntity("Bcn-Welt", "Room")
+	e.SetAttributeAsFloat("temperature", 21.7)
+	e.SetAttributeAsInteger("humidity", 60)
+	return e
+}
+
+func TestCreateEntityCreated(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Content-Type") != "application/json" {
+						t.Fatal("Missing application/json Content-Type header")
+					}
+					if r.URL.Query().Get("options") != "upsert" {
+						t.Fatalf("Expected upsert options value, got: '%v'", r.URL.Query().Get("options"))
+					}
+					if b, err := ioutil.ReadAll(r.Body); err != nil {
+						t.Fatalf("Unexpected error: '%v'", err)
+					} else if len(string(b)) < 1 {
+						t.Fatal("Request doesn't contain data")
+					}
+					w.Header().Set("Location", "/v2/entities/Bcn-Welt?type=Room")
+					w.WriteHeader(http.StatusCreated)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if loc, upsert, err := cli.CreateEntity(sampleEntity(), client.CreateEntitySetOptionsUpsert()); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if loc != "/v2/entities/Bcn-Welt?type=Room" {
+			t.Fatalf("Expected '%s' location, got '%s'", "/v2/entities/Bcn-Welt?type=Room", loc)
+		}
+		if upsert {
+			t.Fatalf("Expected no upsert, but got an upsert")
+		}
+	}
+}
+
+func TestCreateEntityNoContent(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Content-Type") != "application/json" {
+						t.Fatal("Missing application/json Content-Type header")
+					}
+					if r.URL.Query().Get("options") != "upsert" {
+						t.Fatalf("Expected upsert options value, got: '%v'", r.URL.Query().Get("options"))
+					}
+					if b, err := ioutil.ReadAll(r.Body); err != nil {
+						t.Fatalf("Unexpected error: '%v'", err)
+					} else if len(string(b)) < 1 {
+						t.Fatal("Request doesn't contain entities")
+					}
+					w.Header().Set("Location", "/v2/entities/Bcn-Welt?type=Room")
+					w.WriteHeader(http.StatusNoContent)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if loc, upsert, err := cli.CreateEntity(sampleEntity(), client.CreateEntitySetOptionsUpsert()); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if loc != "/v2/entities/Bcn-Welt?type=Room" {
+			t.Fatalf("Expected '%s' location, got '%s'", "/v2/entities/Bcn-Welt?type=Room", loc)
+		}
+		if !upsert {
+			t.Fatalf("Expected upsert, but got no upsert response")
+		}
+	}
+}
+
 func TestCreateSubscriptionBadRequest(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(

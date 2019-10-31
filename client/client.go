@@ -470,6 +470,88 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 	}
 }
 
+type createEntityOption string
+
+const (
+	keyValuesCreateEntityOption createEntityOption = "keyValues"
+	upsertCreateEntityOption    createEntityOption = "upsert"
+)
+
+type createEntityParams struct {
+	options createEntityOption
+}
+
+type CreateEntityParamFunc func(*createEntityParams) error
+
+func CreateEntitySetOptionsUpsert() CreateEntityParamFunc {
+	return func(p *createEntityParams) error {
+		p.options = upsertCreateEntityOption
+		return nil
+	}
+}
+
+func CreateEntitySetOptionsKeyValues() CreateEntityParamFunc {
+	return func(p *createEntityParams) error {
+		p.options = keyValuesCreateEntityOption
+		return nil
+	}
+}
+
+// CreateEntity creates a new entity passed as parameter.
+// See: http://fiware.github.io/specifications/ngsiv2/stable -> Entities -> Create Entity
+// It returns the resource location that has been created, if upsert is used or
+// not and any error encountered.
+func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntityParamFunc) (string, bool, error) {
+	params := new(createEntityParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return "", false, err
+		}
+	}
+
+	eUrl, err := c.getEntitiesUrl()
+	if err != nil {
+		return "", false, err
+	}
+
+	jsonEntity, err := json.Marshal(entity)
+	if err != nil {
+		return "", false, fmt.Errorf("Could not serialize message: %v", err)
+	}
+	req, err := newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity))
+	if err != nil {
+		return "", false, fmt.Errorf("Could not create request for batch update: %v", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if params.options != "" {
+		q := req.URL.Query()
+		q.Add("options", string(params.options))
+		req.URL.RawQuery = q.Encode()
+	}
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return "", false, fmt.Errorf("Error invoking entity creation: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusCreated {
+		return resp.Header.Get("Location"), false, nil
+	} else if resp.StatusCode == http.StatusNoContent {
+		return resp.Header.Get("Location"), true, nil
+	} else {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", false, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	/*
+		q := req.URL.Query()
+		req.URL.RawQuery = q.Encode()
+
+		return nil*/
+}
+
 // CreateSubscription creates a new subscription to the context broker.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-list/create-a-new-subscription
 func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription) (string, error) {
