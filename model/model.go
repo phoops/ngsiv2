@@ -126,6 +126,11 @@ type SubscriptionNotification struct {
 	LastSuccess      *time.Time                          `json:"lastSuccess,omitempty"`
 }
 
+type Notification struct {
+	Data           []*Entity `json:"data"`
+	SubscriptionId string    `json:"subscriptionId"`
+}
+
 type OrionTime struct {
 	time.Time
 }
