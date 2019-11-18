@@ -705,7 +705,7 @@ func (c *NgsiV2Client) RetrieveSubscriptions(options ...RetrieveSubscriptionsPar
 		} else {
 			ret := new(SubscriptionsResponse)
 			ret.Subscriptions = subs
-			if c, err := strconv.Atoi(resp.Header.Get("Fiware-Total-Count")); err != nil {
+			if c, err := strconv.Atoi(resp.Header.Get("Fiware-Total-Count")); err == nil {
 				ret.Count = c
 			}
 			return ret, nil

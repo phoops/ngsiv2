@@ -546,3 +546,35 @@ func TestRetrieveSubscriptions(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrieveSubscriptionsWithOptionsCount(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.URL.Query().Get("limit") != "50" {
+						t.Fatalf("Expected a limit value of '50', got '%s'", r.URL.Query().Get("limit"))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("Fiware-Total-Count", "1")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `[{"id":"5c001e0b8ecef47022068b21","description":"One subscription to rule them all","expires":"2016-04-05T14:00:00.00Z","status":"expired","subject":{"entities":[{"idPattern":".*","type":"Room"}],"condition":{"attrs":["temperature"],"expression":{"q":"temperature>40"}}},"notification":{"attrs":["temperature","humidity"],"attrsFormat":"normalized","http":{"url":"http://localhost:1234"}},"throttling":5}]`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if res, err := cli.RetrieveSubscriptions(client.RetrieveSubscriptionsSetLimit(50), client.RetrieveSubscriptionsSetOptions("count")); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if res.Count != 1 {
+			t.Fatalf("Expected 1 subscription count value, got %d", res.Count)
+		}
+	}
+}
