@@ -578,3 +578,37 @@ func TestRetrieveSubscriptionsWithOptionsCount(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrieveEntitiesWithFiwareHeaders(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Fiware-Service") != "sampleService" {
+						t.Errorf("Expected 'sampleService' as header in 'Fiware-Service', got '%s'", r.Header.Get("Fiware-Service"))
+					}
+					if r.Header.Get("Fiware-ServicePath") != "/a/path" {
+						t.Errorf("Expected '/a/path' as header in 'Fiware-ServicePath', got '%s'", r.Header.Get("Fiware-ServicePath"))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `[{"id":"r2","type":"Room","pressure":{"type":"Integer","value":"720","metadata":{}},"temperature":{"type":"Float","value":34,"metadata":{}}},{"id":"r5","type":"Room","pressure":{"type":"Integer","value":"700","metadata":{}},"temperature":{"type":"Float","value":31,"metadata":{}}}
+]`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if _, err := cli.ListEntities(
+		client.ListEntitiesSetType("Room"),
+		client.ListEntitiesSetFiwareService("sampleService"),
+		client.ListEntitiesSetFiwareServicePath("/a/path")); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+}

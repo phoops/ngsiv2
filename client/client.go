@@ -61,13 +61,21 @@ func SetUrl(url string) ClientOptionFunc {
 	}
 }
 
-func newRequest(method, url string, body io.Reader) (*http.Request, error) {
+type additionalHeader struct {
+	key   string
+	value string
+}
+
+func newRequest(method, url string, body io.Reader, additionalHeaders ...additionalHeader) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", "ngsiv2-client")
 	req.Header.Add("Accept", "application/json")
+	for _, ah := range additionalHeaders {
+		req.Header.Add(ah.key, ah.value)
+	}
 	return req, nil
 }
 
@@ -138,7 +146,24 @@ func (c *NgsiV2Client) getSubscriptionsUrl() (string, error) {
 	return fmt.Sprintf("%s%s", c.url, c.apiRes.SubscriptionsUrl), nil
 }
 
+type fiwareHeaderParams struct {
+	fiwareService     string
+	fiwareServicePath string
+}
+
+func (f fiwareHeaderParams) headers() []additionalHeader {
+	var ret []additionalHeader
+	if f.fiwareService != "" {
+		ret = append(ret, additionalHeader{"Fiware-Service", f.fiwareService})
+	}
+	if f.fiwareServicePath != "" {
+		ret = append(ret, additionalHeader{"Fiware-ServicePath", f.fiwareServicePath})
+	}
+	return ret
+}
+
 type retrieveEntityParams struct {
+	fiwareHeaderParams
 	id         string
 	entityType string
 	attrs      []string
@@ -189,6 +214,20 @@ func RetrieveEntitySetOptions(opts model.SimplifiedEntityRepresentation) Retriev
 	}
 }
 
+func RetrieveEntitySetFiwareService(fiwareService string) RetrieveEntityParamFunc {
+	return func(p *retrieveEntityParams) error {
+		p.fiwareService = fiwareService
+		return nil
+	}
+}
+
+func RetrieveEntitySetFiwareServicePath(fiwareServicePath string) RetrieveEntityParamFunc {
+	return func(p *retrieveEntityParams) error {
+		p.fiwareServicePath = fiwareServicePath
+		return nil
+	}
+}
+
 // RetrieveEntity retrieves an object representing the entity identified by the given id.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/entities/entity-by-id/retrieve-entity
 func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamFunc) (*model.Entity, error) {
@@ -211,7 +250,7 @@ func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamF
 		return nil, err
 	}
 
-	req, err := newRequest("GET", fmt.Sprintf("%s/%s", eUrl, params.id), nil)
+	req, err := newRequest("GET", fmt.Sprintf("%s/%s", eUrl, params.id), nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -384,6 +423,20 @@ func ListEntitiesAddQueryStatement(statement model.SimpleQueryStatement) ListEnt
 	}
 }
 
+func ListEntitiesSetFiwareService(fiwareService string) ListEntitiesParamFunc {
+	return func(p *listEntitiesParams) error {
+		p.fiwareService = fiwareService
+		return nil
+	}
+}
+
+func ListEntitiesSetFiwareServicePath(fiwareServicePath string) ListEntitiesParamFunc {
+	return func(p *listEntitiesParams) error {
+		p.fiwareServicePath = fiwareServicePath
+		return nil
+	}
+}
+
 // ListEntities retrieves a list of entities that match all criteria.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/entities/list-entities
 func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.Entity, error) {
@@ -405,7 +458,7 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 		return nil, err
 	}
 
-	req, err := newRequest("GET", fmt.Sprintf("%s", eUrl), nil)
+	req, err := newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -478,6 +531,7 @@ const (
 )
 
 type createEntityParams struct {
+	fiwareHeaderParams
 	options createEntityOption
 }
 
@@ -493,6 +547,20 @@ func CreateEntitySetOptionsUpsert() CreateEntityParamFunc {
 func CreateEntitySetOptionsKeyValues() CreateEntityParamFunc {
 	return func(p *createEntityParams) error {
 		p.options = keyValuesCreateEntityOption
+		return nil
+	}
+}
+
+func CreateEntitySetFiwareService(fiwareService string) CreateEntityParamFunc {
+	return func(p *createEntityParams) error {
+		p.fiwareService = fiwareService
+		return nil
+	}
+}
+
+func CreateEntitySetFiwareServicePath(fiwareServicePath string) CreateEntityParamFunc {
+	return func(p *createEntityParams) error {
+		p.fiwareServicePath = fiwareServicePath
 		return nil
 	}
 }
@@ -520,7 +588,7 @@ func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntit
 	if err != nil {
 		return "", false, fmt.Errorf("Could not serialize message: %v", err)
 	}
-	req, err := newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity))
+	req, err := newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity), params.headers()...)
 	if err != nil {
 		return "", false, fmt.Errorf("Could not create request for batch update: %v", err)
 	}
@@ -552,9 +620,39 @@ func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntit
 		return nil*/
 }
 
+type subscriptionParams struct {
+	fiwareHeaderParams
+	options createEntityOption
+}
+
+type SubscriptionParamFunc func(*subscriptionParams) error
+
+func SubscriptionSetFiwareService(fiwareService string) SubscriptionParamFunc {
+	return func(p *subscriptionParams) error {
+		p.fiwareService = fiwareService
+		return nil
+	}
+}
+
+func SubscriptionSetFiwareServicePath(fiwareServicePath string) SubscriptionParamFunc {
+	return func(p *subscriptionParams) error {
+		p.fiwareServicePath = fiwareServicePath
+		return nil
+	}
+}
+
 // CreateSubscription creates a new subscription to the context broker.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-list/create-a-new-subscription
-func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription) (string, error) {
+func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription, options ...SubscriptionParamFunc) (string, error) {
+	params := new(subscriptionParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return "", err
+		}
+	}
+
 	jsonValue, err := json.Marshal(subscription)
 	if err != nil {
 		return "", fmt.Errorf("Could not serialize subscription: %+v", err)
@@ -564,7 +662,7 @@ func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription) (str
 	if err != nil {
 		return "", err
 	}
-	req, err := newRequest("POST", sUrl, bytes.NewBuffer(jsonValue))
+	req, err := newRequest("POST", sUrl, bytes.NewBuffer(jsonValue), params.headers()...)
 	if err != nil {
 		return "", fmt.Errorf("Could not create request for subscription creation: %+v", err)
 	}
@@ -616,6 +714,7 @@ func (c *NgsiV2Client) RetrieveSubscription(id string) (*model.Subscription, err
 }
 
 type retrieveSubscriptionsParams struct {
+	fiwareHeaderParams
 	limit   int
 	offset  int
 	options string
@@ -653,6 +752,20 @@ func RetrieveSubscriptionsSetOptions(options string) RetrieveSubscriptionsParamF
 	}
 }
 
+func RetrieveSubscriptionsSetFiwareService(fiwareService string) RetrieveSubscriptionsParamFunc {
+	return func(p *retrieveSubscriptionsParams) error {
+		p.fiwareService = fiwareService
+		return nil
+	}
+}
+
+func RetrieveSubscriptionsSetFiwareServicePath(fiwareServicePath string) RetrieveSubscriptionsParamFunc {
+	return func(p *retrieveSubscriptionsParams) error {
+		p.fiwareServicePath = fiwareServicePath
+		return nil
+	}
+}
+
 type SubscriptionsResponse struct {
 	Count         int
 	Subscriptions []*model.Subscription
@@ -674,7 +787,7 @@ func (c *NgsiV2Client) RetrieveSubscriptions(options ...RetrieveSubscriptionsPar
 	if err != nil {
 		return nil, err
 	}
-	req, err := newRequest("GET", sUrl, nil)
+	req, err := newRequest("GET", sUrl, nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for subscriptions retrieval: %+v", err)
 	}
@@ -715,7 +828,7 @@ func (c *NgsiV2Client) RetrieveSubscriptions(options ...RetrieveSubscriptionsPar
 
 // UpdateSubscription updates a subscription identified by the given id with the field specified in the request.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-by-id/update-subscription
-func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Subscription) error {
+func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Subscription, options ...SubscriptionParamFunc) error {
 	if id == "" {
 		return fmt.Errorf("Cannot update subscription with empty 'id'")
 	}
@@ -729,7 +842,17 @@ func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Su
 	if err != nil {
 		return err
 	}
-	req, err := newRequest("PATCH", fmt.Sprintf("%s/%s", sUrl, id), bytes.NewBuffer(jsonValue))
+
+	params := new(subscriptionParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return err
+		}
+	}
+
+	req, err := newRequest("PATCH", fmt.Sprintf("%s/%s", sUrl, id), bytes.NewBuffer(jsonValue), params.headers()...)
 	if err != nil {
 		return fmt.Errorf("Could not create request for subscription updating: %+v", err)
 	}
@@ -748,7 +871,7 @@ func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Su
 
 // DeleteSubscription cancels a subscription identified by the given id.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/subscriptions/subscription-by-id/delete-subscription
-func (c *NgsiV2Client) DeleteSubscription(id string) error {
+func (c *NgsiV2Client) DeleteSubscription(id string, options ...SubscriptionParamFunc) error {
 	if id == "" {
 		return fmt.Errorf("Cannot delete subscription with empty 'id'")
 	}
@@ -757,7 +880,17 @@ func (c *NgsiV2Client) DeleteSubscription(id string) error {
 	if err != nil {
 		return err
 	}
-	req, err := newRequest("DELETE", fmt.Sprintf("%s/%s", sUrl, id), nil)
+
+	params := new(subscriptionParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return err
+		}
+	}
+
+	req, err := newRequest("DELETE", fmt.Sprintf("%s/%s", sUrl, id), nil, params.headers()...)
 	if err != nil {
 		return fmt.Errorf("Could not create request for subscription deletion: %+v", err)
 	}
