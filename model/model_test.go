@@ -76,6 +76,9 @@ func TestEntityUnmarshal(t *testing.T) {
 	if pressureVal != 720 {
 		t.Fatalf("Expected '%d' for pressure value; got '%d'", 720, pressureVal)
 	}
+	if paVal, _ := roomEntity.GetAttributeAsInteger("pressure"); paVal != 720 {
+		t.Fatalf("Expected '%d' for pressure attribute as integer; got '%d'", 720, paVal)
+	}
 
 	temperatureAttr, err := roomEntity.GetAttribute("temperature")
 	if err != nil {
@@ -94,6 +97,9 @@ func TestEntityUnmarshal(t *testing.T) {
 	if temperatureVal != 23.0 {
 		t.Fatalf("Expected '%v' for temperature value, got '%v'", 23.0, temperatureVal)
 	}
+	if taVal, _ := roomEntity.GetAttributeAsFloat("temperature"); taVal != 23 {
+		t.Fatalf("Expected '%v' for temperature attribute as float, got '%v'", 23.0, taVal)
+	}
 
 	if locationAttr, err := roomEntity.GetAttribute("location"); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
@@ -108,8 +114,11 @@ func TestEntityUnmarshal(t *testing.T) {
 			t.Fatalf("Unexpected error: '%v'", err)
 		} else {
 			if locationVal.Latitude != 43.8030095 || locationVal.Longitude != 11.2385831 {
-				t.Fatalf("Unexpected value reading lastUpdate")
+				t.Fatalf("Unexpected value reading location")
 			}
+		}
+		if laVal, _ := roomEntity.GetAttributeAsGeoPoint("location"); laVal.Latitude != 43.8030095 || laVal.Longitude != 11.2385831 {
+			t.Fatalf("Unexpected value reading location attribute as geopoint")
 		}
 	}
 

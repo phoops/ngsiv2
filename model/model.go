@@ -551,6 +551,46 @@ func (a *Attribute) GetAsGeoPoint() (*GeoPoint, error) {
 	}
 }
 
+func (e *Entity) GetAttributeAsString(attributeName string) (string, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return "", err
+	} else {
+		return a.GetAsString()
+	}
+}
+
+func (e *Entity) GetAttributeAsInteger(attributeName string) (int, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return 0, err
+	} else {
+		return a.GetAsInteger()
+	}
+}
+
+func (e *Entity) GetAttributeAsFloat(attributeName string) (float64, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return 0, err
+	} else {
+		return a.GetAsFloat()
+	}
+}
+
+func (e *Entity) GetAttributeAsDateTime(attributeName string) (time.Time, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return time.Time{}, err
+	} else {
+		return a.GetAsDateTime()
+	}
+}
+
+func (e *Entity) GetAttributeAsGeoPoint(attributeName string) (*GeoPoint, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return new(GeoPoint), err
+	} else {
+		return a.GetAsGeoPoint()
+	}
+}
+
 func NewBatchUpdate(action ActionType) *BatchUpdate {
 	b := &BatchUpdate{ActionType: action}
 	return b
