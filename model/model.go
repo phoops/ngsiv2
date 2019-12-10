@@ -49,6 +49,12 @@ const (
 	GeoJSONType    AttributeType = "geo:json"
 )
 
+const (
+	DateCreatedAttributeName  string = "dateCreated"
+	DateModifiedAttributeName string = "dateModified"
+	DateExpiresAttributeName  string = "dateExpires"
+)
+
 type ActionType string
 
 const (
@@ -494,6 +500,15 @@ func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) error {
 	return nil
 }
 
+func (e *Entity) SetDateExpires(value time.Time) {
+	e.Attributes[DateExpiresAttributeName] = &Attribute{
+		typeValue: typeValue{
+			Type:  DateTimeType,
+			Value: value,
+		},
+	}
+}
+
 func (e *Entity) SetAttributeAsGeoPoint(name string, value *GeoPoint) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
@@ -577,6 +592,30 @@ func (e *Entity) GetAttributeAsFloat(attributeName string) (float64, error) {
 
 func (e *Entity) GetAttributeAsDateTime(attributeName string) (time.Time, error) {
 	if a, err := e.GetAttribute(attributeName); err != nil {
+		return time.Time{}, err
+	} else {
+		return a.GetAsDateTime()
+	}
+}
+
+func (e *Entity) GetDateExpires() (time.Time, error) {
+	if a, err := e.GetAttribute(DateExpiresAttributeName); err != nil {
+		return time.Time{}, err
+	} else {
+		return a.GetAsDateTime()
+	}
+}
+
+func (e *Entity) GetDateCreated() (time.Time, error) {
+	if a, err := e.GetAttribute(DateCreatedAttributeName); err != nil {
+		return time.Time{}, err
+	} else {
+		return a.GetAsDateTime()
+	}
+}
+
+func (e *Entity) GetDateModified() (time.Time, error) {
+	if a, err := e.GetAttribute(DateModifiedAttributeName); err != nil {
 		return time.Time{}, err
 	} else {
 		return a.GetAsDateTime()

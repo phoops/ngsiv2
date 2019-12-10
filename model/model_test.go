@@ -239,6 +239,90 @@ func TestEntityMarshal(t *testing.T) {
 	}
 }
 
+func TestBuiltinAttributesUnmarshal(t *testing.T) {
+	roomEntityJson := `
+	{
+		"id": "Room1",
+		"pressure": {
+			"metadata": {},
+			"type": "Integer",
+			"value": 720
+		},
+		"dateCreated": {
+			"metadata": {},
+			"type": "DateTime",
+			"value": "2019-12-09T11:45:12.00Z"
+		},
+		"dateModified": {
+			"metadata": {},
+			"type": "DateTime",
+			"value": "2019-12-09T11:57:12.00Z"
+		},
+		"dateExpires": {
+			"metadata": {},
+			"type": "DateTime",
+			"value": "2019-12-31T12:05:00.00Z"
+		},
+		"type": "Room"
+	}
+`
+	roomEntity := &model.Entity{}
+	if err := json.Unmarshal([]byte(roomEntityJson), roomEntity); err != nil {
+		t.Fatalf("Error unmarshaling entity: %v", err)
+	}
+
+	if dateCreated, err := roomEntity.GetDateCreated(); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if dateCreated.Day() != 9 || dateCreated.Minute() != 45 {
+			t.Fatalf("Unexpected value reading dateCreated")
+		}
+	}
+
+	if dateModified, err := roomEntity.GetDateModified(); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if dateModified.Day() != 9 || dateModified.Minute() != 57 {
+			t.Fatalf("Unexpected value reading dateModified")
+		}
+	}
+	if dateExpires, err := roomEntity.GetDateExpires(); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if dateExpires.Day() != 31 || dateExpires.Minute() != 5 {
+			t.Fatalf("Unexpected value reading dateExpires")
+		}
+	}
+
+}
+
+func TestDateExpiresMarshal(t *testing.T) {
+	office, err := model.NewEntity("openspace", "Office")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	timeGoneIn60Seconds := time.Now().Add(60 * time.Second)
+	office.SetDateExpires(timeGoneIn60Seconds)
+
+	bytes, err := json.Marshal(office)
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	unmarshaled := &model.Entity{}
+	if err = json.Unmarshal(bytes, unmarshaled); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if dateExpires, err := unmarshaled.GetDateExpires(); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if dateExpires.Day() != timeGoneIn60Seconds.Day() || dateExpires.Minute() != timeGoneIn60Seconds.Minute() || dateExpires.Second() != timeGoneIn60Seconds.Second() {
+			t.Fatalf("Expected '%v' for dateExpires value, got '%v'", timeGoneIn60Seconds, dateExpires)
+		}
+	}
+}
+
 func TestIsValidString(t *testing.T) {
 	if !model.IsValidString("hi there!") {
 		t.Fatal("String shoud be valid")
