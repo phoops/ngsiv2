@@ -313,6 +313,20 @@ func (e *Entity) UnmarshalJSON(b []byte) error {
 		}
 	}
 
+	for _, a := range t_.Attributes {
+		switch a.Type {
+		case DateTimeType:
+			if v, err := time.Parse(time.RFC3339, a.Value.(string)); err == nil {
+				a.Value = v
+			}
+		case GeoPointType:
+			g := new(GeoPoint)
+			if err := g.UnmarshalJSON([]byte(a.Value.(string))); err == nil {
+				a.Value = g
+			}
+		}
+	}
+
 	*e = Entity(t_)
 
 	return nil
@@ -547,10 +561,10 @@ func (a *Attribute) GetAsDateTime() (time.Time, error) {
 	if a.Type != DateTimeType {
 		return time.Time{}, fmt.Errorf("Attribute is not DateTime, but %s", a.Type)
 	}
-	if t, err := time.Parse(time.RFC3339, a.Value.(string)); err != nil {
-		return time.Time{}, err
+	if dt, ok := a.Value.(time.Time); !ok {
+		return time.Time{}, fmt.Errorf("Attribute with date time type does not contain time value")
 	} else {
-		return t, nil
+		return dt, nil
 	}
 }
 
@@ -558,9 +572,8 @@ func (a *Attribute) GetAsGeoPoint() (*GeoPoint, error) {
 	if a.Type != GeoPointType {
 		return nil, fmt.Errorf("Attribute is not GeoPoint, but '%s'", a.Type)
 	}
-	g := new(GeoPoint)
-	if err := g.UnmarshalJSON([]byte(a.Value.(string))); err != nil {
-		return nil, err
+	if g, ok := a.Value.(*GeoPoint); !ok {
+		return nil, fmt.Errorf("Attribute with geopoint type does not contain geopoint value")
 	} else {
 		return g, nil
 	}

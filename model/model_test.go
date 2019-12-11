@@ -239,6 +239,77 @@ func TestEntityMarshal(t *testing.T) {
 	}
 }
 
+func TestDirectEntityAttributeAccess(t *testing.T) {
+	office, _ := model.NewEntity("openspace", "Office")
+	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
+	timeNow := time.Now()
+	office.SetAttributeAsDateTime("lastUpdate", timeNow)
+	gp := model.NewGeoPoint(4.1, 2.3)
+	office.SetAttributeAsGeoPoint("location", gp)
+
+	if office.Id != "openspace" {
+		t.Fatalf("Expected '%s' for id, got '%s'", "openspace", office.Id)
+	}
+
+	if office.Type != "Office" {
+		t.Fatalf("Expected '%s' for type, got '%s'", "Office", office.Type)
+	}
+
+	temperatureAttr, err := office.GetAttribute("temperature")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	temperatureVal, err := temperatureAttr.GetAsFloat()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if temperatureVal != 34.2 {
+		t.Fatalf("Expected '%v' for temperature value, got '%v'", 34.2, temperatureVal)
+	}
+
+	if tempAttrValue, err := office.GetAttributeAsFloat("temperature"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if tempAttrValue != 34.2 {
+		t.Fatalf("Expected '%v' for temperature attribute value, got '%v'", 34.2, tempAttrValue)
+	}
+
+	if lastUpdateAttr, err := office.GetAttribute("lastUpdate"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if lastUpdateVal, err := lastUpdateAttr.GetAsDateTime(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if lastUpdateVal.Day() != timeNow.Day() || lastUpdateVal.Minute() != timeNow.Minute() {
+				t.Fatalf("Expected '%v' for lastUpdate value, got '%v'", timeNow, lastUpdateVal)
+			}
+		}
+	}
+
+	if lastUpdateAttrValue, err := office.GetAttributeAsDateTime("lastUpdate"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if lastUpdateAttrValue.Day() != timeNow.Day() || lastUpdateAttrValue.Minute() != lastUpdateAttrValue.Minute() {
+		t.Fatalf("Expected '%v' for lastUpdate value, got '%v'", timeNow, lastUpdateAttrValue)
+	}
+
+	if locationAttr, err := office.GetAttribute("location"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if locationVal, err := locationAttr.GetAsGeoPoint(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if locationVal.Latitude != gp.Latitude || locationVal.Longitude != gp.Longitude {
+				t.Fatalf("Expected '%v' for location value, got '%v'", gp, locationVal)
+			}
+		}
+	}
+
+	if locationAttrValue, err := office.GetAttributeAsGeoPoint("location"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if locationAttrValue.Latitude != gp.Latitude || locationAttrValue.Longitude != gp.Longitude {
+		t.Fatalf("Expected '%v' for location value, got '%v'", gp, locationAttrValue)
+	}
+}
+
 func TestBuiltinAttributesUnmarshal(t *testing.T) {
 	roomEntityJson := `
 	{
