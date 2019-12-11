@@ -508,7 +508,7 @@ func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) error {
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  DateTimeType,
-			Value: value,
+			Value: OrionTime{value},
 		},
 	}
 	return nil
@@ -518,7 +518,7 @@ func (e *Entity) SetDateExpires(value time.Time) {
 	e.Attributes[DateExpiresAttributeName] = &Attribute{
 		typeValue: typeValue{
 			Type:  DateTimeType,
-			Value: value,
+			Value: OrionTime{value},
 		},
 	}
 }
@@ -562,7 +562,11 @@ func (a *Attribute) GetAsDateTime() (time.Time, error) {
 		return time.Time{}, fmt.Errorf("Attribute is not DateTime, but %s", a.Type)
 	}
 	if dt, ok := a.Value.(time.Time); !ok {
-		return time.Time{}, fmt.Errorf("Attribute with date time type does not contain time value")
+		if dt, ok := a.Value.(OrionTime); !ok {
+			return time.Time{}, fmt.Errorf("Attribute with date time type does not contain time value")
+		} else {
+			return dt.Time, nil
+		}
 	} else {
 		return dt, nil
 	}
