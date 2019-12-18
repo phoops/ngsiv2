@@ -187,7 +187,7 @@ func RetrieveEntitySetType(entityType string) RetrieveEntityParamFunc {
 }
 
 func addRetrieveEntityAttribute(p *retrieveEntityParams, attr string) error {
-	if !model.IsValidAttributeName(attr) {
+	if !model.IsValidFieldSyntax(attr) {
 		return fmt.Errorf("'%s' is not a valid attribute name", attr)
 	}
 	p.attrs = append(p.attrs, attr)
@@ -376,11 +376,10 @@ func ListEntitiesSetOffset(offset int) ListEntitiesParamFunc {
 
 func ListEntitiesAddOrderBy(attr string, ascending bool) ListEntitiesParamFunc {
 	return func(p *listEntitiesParams) error {
-		if attr != "geo:distance" {
-			if !model.IsValidAttributeName(attr) {
-				return fmt.Errorf("'%s' is not a valid attribute name", attr)
-			}
+		if !model.IsValidFieldSyntax(attr) {
+			return fmt.Errorf("'%s' is not a valid attribute name", attr)
 		}
+
 		if ascending {
 			p.orderBy = append(p.orderBy, attr)
 		} else {
