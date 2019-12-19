@@ -22,6 +22,16 @@ func TestEntityUnmarshal(t *testing.T) {
 			"type": "Float",
 			"value": 23
 		},
+		"dirty": {
+			"metadata": {},
+			"type": "Boolean",
+			"value": false
+		},
+		"hot": {
+			"metadata": {},
+			"type": "Boolean",
+			"value": true
+		},
 		"location": {
 			"metadata": {},
 			"type": "geo:point",
@@ -101,6 +111,48 @@ func TestEntityUnmarshal(t *testing.T) {
 		t.Fatalf("Expected '%v' for temperature attribute as float, got '%v'", 23.0, taVal)
 	}
 
+	dirtyAttr, err := roomEntity.GetAttribute("dirty")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if dirtyAttr.Type != model.BooleanType {
+		t.Fatalf("Expected '%s' for dirty attribute type, got '%s'", "Boolean", dirtyAttr.Type)
+	}
+	if _, err := dirtyAttr.GetAsString(); err == nil {
+		t.Fatal("Expected a failure on non boolean value 'dirty'")
+	}
+	dirtyVal, err := dirtyAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if dirtyVal {
+		t.Fatalf("Expected '%t' for dirty value, got '%t'", false, dirtyVal)
+	}
+	if dtVal, _ := roomEntity.GetAttributeAsBoolean("dirty"); dtVal {
+		t.Fatalf("Expected '%t' for dirty attribute as boolean, got '%t'", false, dtVal)
+	}
+
+	hotAttr, err := roomEntity.GetAttribute("hot")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if hotAttr.Type != model.BooleanType {
+		t.Fatalf("Expected '%s' for hot attribute type, got '%s'", "Boolean", hotAttr.Type)
+	}
+	if _, err := hotAttr.GetAsString(); err == nil {
+		t.Fatal("Expected a failure on non boolean value 'hot'")
+	}
+	hotVal, err := hotAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if !hotVal {
+		t.Fatalf("Expected '%t' for hot value, got '%t'", true, hotVal)
+	}
+	if htVal, _ := roomEntity.GetAttributeAsBoolean("hot"); !htVal {
+		t.Fatalf("Expected '%t' for hot attribute as boolean, got '%t'", true, htVal)
+	}
+
 	if locationAttr, err := roomEntity.GetAttribute("location"); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
 	} else {
@@ -164,6 +216,8 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	office.SetAttributeAsString("name", "Phoops HQ")
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
+	office.SetAttributeAsBoolean("dirty", false)
+	office.SetAttributeAsBoolean("hot", true)
 	timeNow := time.Now()
 	office.SetAttributeAsDateTime("lastUpdate", timeNow)
 	gp := model.NewGeoPoint(4.1, 2.3)
@@ -214,6 +268,30 @@ func TestEntityMarshal(t *testing.T) {
 		t.Fatalf("Expected '%v' for temperature value, got '%v'", 34.2, temperatureVal)
 	}
 
+	dirtyAttr, err := unmarshaled.GetAttribute("dirty")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	dirtyVal, err := dirtyAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if dirtyVal {
+		t.Fatalf("Expected '%t' for dirty value, got '%t'", false, dirtyVal)
+	}
+
+	hotAttr, err := unmarshaled.GetAttribute("hot")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	hotVal, err := hotAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if !hotVal {
+		t.Fatalf("Expected '%t' for hot value, got '%t'", true, hotVal)
+	}
+
 	if lastUpdateAttr, err := unmarshaled.GetAttribute("lastUpdate"); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
 	} else {
@@ -242,6 +320,8 @@ func TestEntityMarshal(t *testing.T) {
 func TestDirectEntityAttributeAccess(t *testing.T) {
 	office, _ := model.NewEntity("openspace", "Office")
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
+	office.SetAttributeAsBoolean("dirty", false)
+	office.SetAttributeAsBoolean("hot", true)
 	timeNow := time.Now()
 	office.SetAttributeAsDateTime("lastUpdate", timeNow)
 	gp := model.NewGeoPoint(4.1, 2.3)
@@ -271,6 +351,42 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	} else if tempAttrValue != 34.2 {
 		t.Fatalf("Expected '%v' for temperature attribute value, got '%v'", 34.2, tempAttrValue)
+	}
+
+	dirtyAttr, err := office.GetAttribute("dirty")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	dirtyVal, err := dirtyAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if dirtyVal {
+		t.Fatalf("Expected '%t' for dirty value, got '%t'", false, dirtyVal)
+	}
+
+	if dirtyAttrValue, err := office.GetAttributeAsBoolean("dirty"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if dirtyAttrValue {
+		t.Fatalf("Expected '%t' for dirty attribute value, got '%t'", false, dirtyAttrValue)
+	}
+
+	hotAttr, err := office.GetAttribute("hot")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	hotVal, err := hotAttr.GetAsBoolean()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if !hotVal {
+		t.Fatalf("Expected '%t' for hot value, got '%t'", true, hotVal)
+	}
+
+	if hotAttrValue, err := office.GetAttributeAsBoolean("hot"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if !hotAttrValue {
+		t.Fatalf("Expected '%t' for hot attribute value, got '%t'", true, hotAttrValue)
 	}
 
 	if lastUpdateAttr, err := office.GetAttribute("lastUpdate"); err != nil {

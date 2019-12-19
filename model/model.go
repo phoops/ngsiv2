@@ -40,6 +40,7 @@ const (
 	StringType     AttributeType = "String"
 	FloatType      AttributeType = "Float"
 	IntegerType    AttributeType = "Integer"
+	BooleanType	   AttributeType = "Boolean"
 	PercentageType AttributeType = "Percentage"
 	DateTimeType   AttributeType = "DateTime"
 	GeoPointType   AttributeType = "geo:point"
@@ -501,6 +502,20 @@ func (e *Entity) SetAttributeAsFloat(name string, value float64) error {
 	return nil
 }
 
+func (e *Entity) SetAttributeAsBoolean(name string, value bool) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  BooleanType,
+			Value: value,
+		},
+	}
+	return nil
+}
+
+
 func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
@@ -557,6 +572,13 @@ func (a *Attribute) GetAsFloat() (float64, error) {
 	return a.Value.(float64), nil
 }
 
+func (a *Attribute) GetAsBoolean() (bool, error) {
+	if a.Type != BooleanType {
+		return false, fmt.Errorf("Attribute is not Boolean, but %s", a.Type)
+	}
+	return a.Value.(bool), nil
+}
+
 func (a *Attribute) GetAsDateTime() (time.Time, error) {
 	if a.Type != DateTimeType {
 		return time.Time{}, fmt.Errorf("Attribute is not DateTime, but %s", a.Type)
@@ -604,6 +626,14 @@ func (e *Entity) GetAttributeAsFloat(attributeName string) (float64, error) {
 		return 0, err
 	} else {
 		return a.GetAsFloat()
+	}
+}
+
+func (e *Entity) GetAttributeAsBoolean(attributeName string) (bool, error) {
+	if a, err := e.GetAttribute(attributeName); err != nil {
+		return false, err
+	} else {
+		return a.GetAsBoolean()
 	}
 }
 
