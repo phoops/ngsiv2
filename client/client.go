@@ -522,6 +522,88 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 	}
 }
 
+// CountEntities returns how many entities are compliant with parameters
+func (c *NgsiV2Client) CountEntities(options ...ListEntitiesParamFunc) (int, error) {
+	params := new(listEntitiesParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return 0, err
+		}
+	}
+
+	if params.id != "" && params.idPattern != "" {
+		return 0, fmt.Errorf("Cannot use 'id' and 'idPattern' together")
+	}
+
+	eUrl, err := c.getEntitiesUrl()
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
+	if err != nil {
+		return 0, fmt.Errorf("Could not create request for API resources: %+v", err)
+	}
+	q := req.URL.Query()
+	if params.id != "" {
+		q.Add("id", params.id)
+	}
+	if params.idPattern != "" {
+		q.Add("idPattern", params.idPattern)
+	}
+	if params.entityType != "" {
+		q.Add("type", params.entityType)
+	}
+	attributes := strings.Join(params.attrs, ",")
+	if attributes != "" {
+		q.Add("attrs", attributes)
+	}
+	qExpr := strings.Join(params.q, ";")
+	if qExpr != "" {
+		q.Add("q", qExpr)
+	}
+
+	q.Add("limit", strconv.Itoa(1))
+
+	if params.offset > 0 {
+		q.Add("offset", strconv.Itoa(params.offset))
+	}
+	if params.georel != "" {
+		q.Add("georel", params.georel)
+	}
+	if params.geometry != "" {
+		q.Add("geometry", params.geometry)
+	}
+	coordsStr := strings.Join(params.coords, ";")
+	if coordsStr != "" {
+		q.Add("coords", coordsStr)
+	}
+
+	if params.options != "" {
+		q.Add("options", string(model.CountRepresentation))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("Could not list entities: %+v", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		cnt, err := strconv.Atoi(resp.Header.Get("Fiware-Total-Count"))
+		if err != nil {
+			return 0, err
+		}
+		return cnt, nil
+	}
+}
+
 type createEntityOption string
 
 const (
