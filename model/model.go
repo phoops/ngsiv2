@@ -40,7 +40,7 @@ const (
 	StringType     AttributeType = "String"
 	FloatType      AttributeType = "Float"
 	IntegerType    AttributeType = "Integer"
-	BooleanType	   AttributeType = "Boolean"
+	BooleanType    AttributeType = "Boolean"
 	PercentageType AttributeType = "Percentage"
 	DateTimeType   AttributeType = "DateTime"
 	GeoPointType   AttributeType = "geo:point"
@@ -514,7 +514,6 @@ func (e *Entity) SetAttributeAsBoolean(name string, value bool) error {
 	}
 	return nil
 }
-
 
 func (e *Entity) SetAttributeAsDateTime(name string, value time.Time) error {
 	if err := validateAttributeName(name); err != nil {

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -581,11 +582,9 @@ func (c *NgsiV2Client) CountEntities(options ...ListEntitiesParamFunc) (int, err
 		q.Add("coords", coordsStr)
 	}
 
-	if params.options != "" {
-		q.Add("options", string(model.CountRepresentation))
-	}
-	req.URL.RawQuery = q.Encode()
+	q.Add("options", string(model.CountRepresentation))
 
+	req.URL.RawQuery = q.Encode()
 	resp, err := c.c.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("Could not list entities: %+v", err)
@@ -595,13 +594,18 @@ func (c *NgsiV2Client) CountEntities(options ...ListEntitiesParamFunc) (int, err
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
-	} else {
-		cnt, err := strconv.Atoi(resp.Header.Get("Fiware-Total-Count"))
-		if err != nil {
-			return 0, err
-		}
-		return cnt, nil
 	}
+
+	totalCount := resp.Header.Get("Fiware-Total-Count")
+	if totalCount == "" {
+		return 0, errors.New("Fiware-Total-Count not found in header")
+	}
+	cnt, err := strconv.Atoi(totalCount)
+	if err != nil {
+		return 0, err
+	}
+	return cnt, nil
+
 }
 
 type createEntityOption string
