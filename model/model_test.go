@@ -322,6 +322,7 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
 	office.SetAttributeAsBoolean("dirty", false)
 	office.SetAttributeAsBoolean("hot", true)
+	office.SetAttributeAsInteger("people", 11)
 	timeNow := time.Now()
 	office.SetAttributeAsDateTime("lastUpdate", timeNow)
 	gp := model.NewGeoPoint(4.1, 2.3)
@@ -387,6 +388,24 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	} else if !hotAttrValue {
 		t.Fatalf("Expected '%t' for hot attribute value, got '%t'", true, hotAttrValue)
+	}
+
+	peopleAttr, err := office.GetAttribute("people")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	peopleVal, err := peopleAttr.GetAsInteger()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if peopleVal != 11 {
+		t.Fatalf("Expected '%v' for people value, got '%v'", 11, peopleVal)
+	}
+
+	if peopleAttrValue, err := office.GetAttributeAsInteger("people"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else if peopleAttrValue != 11 {
+		t.Fatalf("Expected '%v' for people attribute value, got '%v'", 11, peopleAttrValue)
 	}
 
 	if lastUpdateAttr, err := office.GetAttribute("lastUpdate"); err != nil {

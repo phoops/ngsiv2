@@ -159,6 +159,47 @@ func TestRetrieveEntity(t *testing.T) {
 	}
 }
 
+func TestRetrieveEntityNotFound(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Accept") != "application/json" {
+						t.Fatal("Missing application/json accept header")
+					}
+					if r.Header.Get("Content-Type") != "" {
+						t.Fatal("No Content-Type allowed for GET request")
+					}
+					if !strings.HasSuffix(r.URL.Path, "/r1") {
+						t.Fatal("Expected 'r1' as id")
+					}
+					if r.URL.Query().Get("type") != "Room" {
+						t.Fatalf("Expected 'type' value: 'Room', got '%s'", r.URL.Query().Get("type"))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprint(w, `{"description": "The requested entity has not been found. Check type and id", "error": "NotFound"}`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if res, err := cli.RetrieveEntity("r1", client.RetrieveEntitySetType("Room")); err == nil {
+		t.Fatal("Expected error (404), but got none")
+	} else {
+		// TODO check 404
+		if res != nil {
+			t.Fatalf("Expected a nil response, got: %+v", *res)
+		}
+	}
+}
+
 func TestRetrieveEntities(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(

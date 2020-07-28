@@ -561,6 +561,12 @@ func (a *Attribute) GetAsInteger() (int, error) {
 	if a.Type != IntegerType {
 		return 0, fmt.Errorf("Attribute is not Integer, but %s", a.Type)
 	}
+	// when we read from JSON, an int is a float64, when we fill with this library, an int is... an int!
+	if fValue, ok := a.Value.(float64); !ok {
+		return a.Value.(int), nil
+	} else {
+		return int(fValue), nil
+	}
 	return int(a.Value.(float64)), nil
 }
 
