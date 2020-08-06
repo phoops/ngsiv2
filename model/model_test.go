@@ -200,6 +200,22 @@ func TestEntityUnmarshal(t *testing.T) {
 		}
 	}
 
+	badLocation := `
+	{
+		"id": "BadLocation1",
+		"location": {
+			"metadata": {},
+			"type": "geo:point",
+			"value": [43.8030095, 11.2385831]
+		},
+		"type": "unknown"
+	}
+	`
+	badLocationEntity := &model.Entity{}
+	err = json.Unmarshal([]byte(badLocation), badLocationEntity)
+	if err == nil {
+		t.Fatalf("Expected error unmarshaling invalid geo:point")
+	}
 }
 
 func TestEntityMarshal(t *testing.T) {

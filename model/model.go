@@ -322,7 +322,11 @@ func (e *Entity) UnmarshalJSON(b []byte) error {
 			}
 		case GeoPointType:
 			g := new(GeoPoint)
-			if err := g.UnmarshalJSON([]byte(a.Value.(string))); err == nil {
+			val, ok := a.Value.(string)
+			if !ok {
+				return fmt.Errorf("Invalid geo:point value: '%v'", a.Value)
+			}
+			if err := g.UnmarshalJSON([]byte(val)); err == nil {
 				a.Value = g
 			}
 		}
