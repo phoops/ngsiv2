@@ -216,6 +216,33 @@ func TestEntityUnmarshal(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error unmarshaling invalid geo:point")
 	}
+
+	geoJSON := `
+	{
+		"id": "GeoJSON1",
+		"location": {
+			"type": "geo:json",
+			"value": {
+				"type": "Point",
+				"coordinates": [-4.754444444, 41.640833333]
+			}
+		},
+		"type": "WeatherObserved"
+	}
+	`
+
+	geoJSONEntity := &model.Entity{}
+	if err := json.Unmarshal([]byte(geoJSON), geoJSONEntity); err != nil {
+		t.Fatalf("Error unmarshaling entity: %v", err)
+	}
+
+	if geoLocation, err := geoJSONEntity.GetAttributeAsGeoJSON("location"); err != nil {
+		t.Fatalf("Error GetAttributeAsGeoJSON 'location': %v", err)
+	} else {
+		if !geoLocation.IsPoint() {
+			t.Fatalf("Expected value to be a Point got %v", err)
+		}
+	}
 }
 
 func TestEntityMarshal(t *testing.T) {
