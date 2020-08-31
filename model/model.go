@@ -83,20 +83,70 @@ type BatchUpdate struct {
 	Entities   []*Entity  `json:"entities"`
 }
 
-type SubscriptionSubjectEntity struct {
+type BatchQuery struct {
+	Entities   []*EntityMatcher `json:"entities,omitempty"`
+	Attrs      []string         `json:"attrs,omitempty"`
+	Expression *QueryExpression `json:"expression,omitempty"`
+	Metadata   []string         `json:"metadata,omitempty"`
+}
+
+func (batchQuery *BatchQuery) Match(matchers ...*EntityMatcher) error {
+	for _, matcher := range matchers {
+		if matcher.Id == "" && matcher.IdPattern == "" {
+			return fmt.Errorf("id or idPattern must be present")
+		}
+		if matcher.Id != "" && matcher.IdPattern != "" {
+			return fmt.Errorf("id and idPattern cannot be used at the same time")
+		}
+		if matcher.Type != "" && matcher.TypePattern != "" {
+			return fmt.Errorf("type and typePattern cannot be used at the same time")
+		}
+		batchQuery.Entities = append(batchQuery.Entities, matcher)
+	}
+
+	return nil
+}
+
+type EntityMatcher struct {
 	Id          string `json:"id,omitempty"`
 	IdPattern   string `json:"idPattern,omitempty"`
 	Type        string `json:"type,omitempty"`
 	TypePattern string `json:"typePattern,omitempty"`
 }
 
-type SubscriptionSubjectConditionExpression struct {
-	Q        string `json:"q,omitempty"`
-	Mq       string `json:"mq,omitempty"`
-	Georel   string `json:"georel,omitempty"`
-	Geometry string `json:"geometry,omitempty"`
-	Coords   string `json:"coords,omitempty"`
+func NewEntityMatcher() *EntityMatcher {
+	return &EntityMatcher{}
 }
+
+func (entityMatcher *EntityMatcher) ById(id string) *EntityMatcher {
+	entityMatcher.Id = id
+	return entityMatcher
+}
+
+func (entityMatcher *EntityMatcher) ByIdPattern(idPattern string) *EntityMatcher {
+	entityMatcher.IdPattern = idPattern
+	return entityMatcher
+}
+func (entityMatcher *EntityMatcher) ByType(typeName string) *EntityMatcher {
+	entityMatcher.Type = typeName
+	return entityMatcher
+}
+func (entityMatcher *EntityMatcher) ByTypePattern(typePattern string) *EntityMatcher {
+	entityMatcher.TypePattern = typePattern
+	return entityMatcher
+}
+
+type QueryExpression struct {
+	Q        string                       `json:"q,omitempty"`
+	Mq       string                       `json:"mq,omitempty"`
+	Georel   GeospatialRelationship       `json:"georel,omitempty"`
+	Geometry SimpleLocationFormatGeometry `json:"geometry,omitempty"`
+	Coords   string                       `json:"coords,omitempty"`
+}
+
+type SubscriptionSubjectEntity = EntityMatcher
+
+type SubscriptionSubjectConditionExpression = QueryExpression
 
 type SubscriptionSubjectCondition struct {
 	Attrs      []string                                `json:"attrs,omitempty"`

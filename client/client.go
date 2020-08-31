@@ -102,6 +102,110 @@ func (c *NgsiV2Client) BatchUpdate(msg *model.BatchUpdate) error {
 	return nil
 }
 
+func (c *NgsiV2Client) BatchQuery(msg *model.BatchQuery, options ...BatchQueryParamFunc) ([]*model.Entity, error) {
+	params := new(batchQueryParams)
+
+	// apply the options
+	for _, option := range options {
+		if err := option(params); err != nil {
+			return nil, err
+		}
+	}
+
+	jsonValue, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize message: %+v", err)
+	}
+	req, err := newRequest("POST", fmt.Sprintf("%s/v2/op/query", c.url), bytes.NewBuffer(jsonValue))
+	if err != nil {
+		return nil, fmt.Errorf("could not create request for batch query: %+v", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	q := req.URL.Query()
+
+	if params.limit > 0 {
+		q.Add("limit", strconv.Itoa(params.limit))
+	}
+
+	if params.offset > 0 {
+		q.Add("offset", strconv.Itoa(params.offset))
+	}
+
+	orderByStr := strings.Join(params.orderBy, ",")
+	if orderByStr != "" {
+		q.Add("orderBy", orderByStr)
+	}
+	if params.options != "" {
+		q.Add("options", string(params.options))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Error invoking batch update: %+v", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	var ret []*model.Entity
+	if err := json.Unmarshal(bodyBytes, &ret); err != nil {
+		return nil, fmt.Errorf("Error reading batch query response: %+v", err)
+	}
+	return ret, nil
+}
+
+type batchQueryParams struct {
+	limit   int
+	offset  int
+	orderBy []string
+	options string
+}
+
+type BatchQueryParamFunc func(params *batchQueryParams) error
+
+func BatchQuerySetLimit(limit int) BatchQueryParamFunc {
+	return func(p *batchQueryParams) error {
+		if limit <= 0 {
+			return fmt.Errorf("limit cannot be less than or equal 0")
+		}
+		p.limit = limit
+		return nil
+	}
+}
+
+func BatchQuerySetOffset(offset int) BatchQueryParamFunc {
+	return func(p *batchQueryParams) error {
+		if offset < 0 {
+			return fmt.Errorf("offset cannot be less than 0")
+		}
+		p.offset = offset
+		return nil
+	}
+}
+
+func BatchQueryAddOrderBy(attr string, ascending bool) BatchQueryParamFunc {
+	return func(p *batchQueryParams) error {
+		if !model.IsValidFieldSyntax(attr) {
+			return fmt.Errorf("'%s' is not a valid attribute name", attr)
+		}
+
+		if ascending {
+			p.orderBy = append(p.orderBy, attr)
+		} else {
+			p.orderBy = append(p.orderBy, "!"+attr)
+		}
+		return nil
+	}
+}
+
+func BatchQuerySetOptions(opts string) BatchQueryParamFunc {
+	return func(p *batchQueryParams) error {
+		return fmt.Errorf("not supported")
+	}
+}
+
 // RetrieveAPIResources gives url link values for retrieving resources.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/api-entry-point/retrieve-api-resources/retrieve-api-resources
 func (c *NgsiV2Client) RetrieveAPIResources() (*model.APIResources, error) {
