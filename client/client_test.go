@@ -64,6 +64,69 @@ func TestBatchUpdateNoContent(t *testing.T) {
 	}
 }
 
+func TestBatchQueryBadRequest(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, `{"error":"ParseError","description":"Errors found in incoming JSON buffer"}`)
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if _, err := cli.BatchQuery(&model.BatchQuery{}); err == nil {
+		t.Fatal("Expected an error")
+	}
+}
+
+func TestBatchQuery(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Accept") != "application/json" {
+						t.Fatal("Missing application/json accept header")
+					}
+					if r.Header.Get("Content-Type") != "application/json" {
+						t.Fatal("Missing application/json content-type header")
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `[{"id":"r1","type":"Room","pressure":{"type":"Integer","value":"720","metadata":{}},"temperature":{"type":"Float","value":23,"metadata":{}}}]`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(client.SetUrl(ts.URL))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	bq := &model.BatchQuery{}
+	err = bq.Match(model.NewEntityMatcher().ById("r1"))
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if res, err := cli.BatchQuery(bq, client.BatchQuerySetLimit(1), client.BatchQuerySetOffset(0), client.BatchQueryAddOrderBy("temperature", true)); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if len(res) != 1 {
+			t.Fatal("Unexpected result")
+		}
+		if res[0].Id != "r1" ||
+			res[0].Type != "Room" ||
+			res[0].Attributes["temperature"].Type != model.FloatType {
+			t.Fatal("Invalid entity retrieved")
+		}
+	}
+}
+
 func TestRetrieveAPIResources(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(apiResourcesHandler))
 	defer ts.Close()
