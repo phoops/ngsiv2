@@ -12,6 +12,11 @@ func TestEntityUnmarshal(t *testing.T) {
 	roomEntityJson := `
 	{
 		"id": "Room1",
+		"description": {
+			"metadata": {},
+			"type": "Text",
+			"value": "A wonderful sensor"
+		},
 		"pressure": {
 			"metadata": {},
 			"type": "Integer",
@@ -67,6 +72,27 @@ func TestEntityUnmarshal(t *testing.T) {
 
 	if _, err := roomEntity.GetAttribute("humidity"); err == nil {
 		t.Fatal("Expected a failure on missing attribute 'humidity'")
+	}
+
+	descriptionAttr, err := roomEntity.GetAttribute("description")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if descriptionAttr.Type != model.TextType {
+		t.Fatalf("Expected '%s' for description attribute type; got '%s'", model.TextType, descriptionAttr.Type)
+	}
+	if _, err := descriptionAttr.GetAsFloat(); err == nil {
+		t.Fatal("Expected a failure on non float value 'description'")
+	}
+	descriptionVal, err := descriptionAttr.GetAsString()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if descriptionVal != "A wonderful sensor" {
+		t.Fatalf("Expected '%s' for description value; got '%s'", "A wonderful sensor", descriptionVal)
+	}
+	if daVal, _ := roomEntity.GetAttributeAsString("description"); daVal != "A wonderful sensor" {
+		t.Fatalf("Expected '%s' for description attribute as string; got '%s'", "A wonderful sensor", daVal)
 	}
 
 	pressureAttr, err := roomEntity.GetAttribute("pressure")
@@ -231,6 +257,7 @@ func TestEntityMarshal(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 	office.SetAttributeAsString("name", "Phoops HQ")
+	office.SetAttributeAsText("description", "very hot historical building")
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
 	office.SetAttributeAsBoolean("dirty", false)
 	office.SetAttributeAsBoolean("hot", true)
@@ -270,6 +297,18 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	if nameVal != "Phoops HQ" {
 		t.Fatalf("Expected '%s' for name attribute, got '%s'", "Phoops HQ", nameVal)
+	}
+
+	descriptionAttr, err := unmarshaled.GetAttribute("description")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	descriptionVal, err := descriptionAttr.GetAsString()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if descriptionVal != "very hot historical building" {
+		t.Fatalf("Expected '%s' for description attribute, got '%s'", "very hot historical building", descriptionVal)
 	}
 
 	temperatureAttr, err := unmarshaled.GetAttribute("temperature")
