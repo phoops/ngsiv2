@@ -17,6 +17,11 @@ func TestEntityUnmarshal(t *testing.T) {
 			"type": "Text",
 			"value": "A wonderful sensor"
 		},
+		"version": {
+			"metadata": {},
+			"type": "Number",
+			"value": 12.345
+		},
 		"pressure": {
 			"metadata": {},
 			"type": "Integer",
@@ -93,6 +98,27 @@ func TestEntityUnmarshal(t *testing.T) {
 	}
 	if daVal, _ := roomEntity.GetAttributeAsString("description"); daVal != "A wonderful sensor" {
 		t.Fatalf("Expected '%s' for description attribute as string; got '%s'", "A wonderful sensor", daVal)
+	}
+
+	versionAttr, err := roomEntity.GetAttribute("version")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if versionAttr.Type != model.NumberType {
+		t.Fatalf("Expected '%s' for version attribute type; got '%s'", model.NumberType, versionAttr.Type)
+	}
+	if _, err := versionAttr.GetAsBoolean(); err == nil {
+		t.Fatal("Expected a failure on non boolean value 'version'")
+	}
+	versionVal, err := versionAttr.GetAsFloat()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if versionVal != 12.345 {
+		t.Fatalf("Expected '%f' for version value; got '%f'", 12.345, versionVal)
+	}
+	if vrVal, _ := roomEntity.GetAttributeAsFloat("version"); vrVal != 12.345 {
+		t.Fatalf("Expected '%f' for version attribute as float; got '%f'", 12.345, vrVal)
 	}
 
 	pressureAttr, err := roomEntity.GetAttribute("pressure")
@@ -258,6 +284,7 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	office.SetAttributeAsString("name", "Phoops HQ")
 	office.SetAttributeAsText("description", "very hot historical building")
+	office.SetAttributeAsNumber("sqmeters", 200.40)
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
 	office.SetAttributeAsBoolean("dirty", false)
 	office.SetAttributeAsBoolean("hot", true)
@@ -309,6 +336,18 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	if descriptionVal != "very hot historical building" {
 		t.Fatalf("Expected '%s' for description attribute, got '%s'", "very hot historical building", descriptionVal)
+	}
+
+	sqmetersAttr, err := unmarshaled.GetAttribute("sqmeters")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	sqmetersVal, err := sqmetersAttr.GetAsFloat()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if sqmetersVal != 200.40 {
+		t.Fatalf("Expected '%f' for description attribute, got '%f'", 200.40, sqmetersVal)
 	}
 
 	temperatureAttr, err := unmarshaled.GetAttribute("temperature")

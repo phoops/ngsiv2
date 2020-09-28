@@ -39,6 +39,7 @@ type AttributeType string
 const (
 	StringType     AttributeType = "String"
 	TextType       AttributeType = "Text"
+	NumberType     AttributeType = "Number"
 	FloatType      AttributeType = "Float"
 	IntegerType    AttributeType = "Integer"
 	BooleanType    AttributeType = "Boolean"
@@ -544,6 +545,19 @@ func (e *Entity) SetAttributeAsText(name string, value string) error {
 	return nil
 }
 
+func (e *Entity) SetAttributeAsNumber(name string, value float64) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  NumberType,
+			Value: value,
+		},
+	}
+	return nil
+}
+
 func (e *Entity) SetAttributeAsInteger(name string, value int) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
@@ -639,8 +653,8 @@ func (a *Attribute) GetAsInteger() (int, error) {
 }
 
 func (a *Attribute) GetAsFloat() (float64, error) {
-	if a.Type != FloatType {
-		return 0, fmt.Errorf("Attribute is not Float, but %s", a.Type)
+	if a.Type != FloatType && a.Type != NumberType {
+		return 0, fmt.Errorf("Attribute is nor Float or Number, but %s", a.Type)
 	}
 	return a.Value.(float64), nil
 }
