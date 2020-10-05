@@ -665,8 +665,6 @@ func (a *Attribute) GetAsGeoJSON() (*geojson.Geometry, error) {
 	if a.Type != GeoJSONType {
 		return nil, fmt.Errorf("Attribute is not geo:json, but '%s'", a.Type)
 	}
-	fmt.Println("type:", reflect.TypeOf(a.Value))
-	fmt.Println(a.Value)
 	g, ok := a.Value.(*geojson.Geometry)
 	if !ok {
 		return nil, fmt.Errorf("Attribute with geo:json type does not contain geo:json value")

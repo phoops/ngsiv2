@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"encoding/json"
+	geojson "github.com/paulmach/go.geojson"
 	"testing"
 	"time"
 
@@ -269,6 +270,9 @@ func TestEntityMarshal(t *testing.T) {
 		t.Fatal("Expected an error for an invalid attribute")
 	}
 
+	geoJsonPoint := geojson.NewPointGeometry([]float64{4.1, 2.3})
+	office.SetAttributeAsGeoJSON("position", geoJsonPoint)
+
 	bytes, err := json.Marshal(office)
 	if err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
@@ -355,6 +359,22 @@ func TestEntityMarshal(t *testing.T) {
 		} else {
 			if locationVal.Latitude != gp.Latitude || locationVal.Longitude != gp.Longitude {
 				t.Fatalf("Expected '%v' for location value, got '%v'", gp, locationVal)
+			}
+		}
+	}
+
+	if positionAttr, err := unmarshaled.GetAttribute("position"); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	} else {
+		if positionVal, err := positionAttr.GetAsGeoJSON(); err != nil {
+			t.Fatalf("Unexpected error: '%v'", err)
+		} else {
+			if !positionVal.IsPoint() {
+				t.Fatalf("Expected '%v' for position type == point, got '%v'", true, positionVal.IsPoint())
+			}
+
+			if positionVal.Point[0] != geoJsonPoint.Point[0] || positionVal.Point[1] != geoJsonPoint.Point[1] {
+				t.Fatalf("Expected '%v' for location value, got '%v'", geoJsonPoint.Point, positionVal.Point)
 			}
 		}
 	}
@@ -465,7 +485,7 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 
 	if lastUpdateAttrValue, err := office.GetAttributeAsDateTime("lastUpdate"); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
-	} else if lastUpdateAttrValue.Day() != timeNow.Day() || lastUpdateAttrValue.Minute() != lastUpdateAttrValue.Minute() {
+	} else if lastUpdateAttrValue.Day() != timeNow.Day() || lastUpdateAttrValue.Minute() != timeNow.Minute() {
 		t.Fatalf("Expected '%v' for lastUpdate value, got '%v'", timeNow, lastUpdateAttrValue)
 	}
 
