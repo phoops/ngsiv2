@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	geojson "github.com/paulmach/go.geojson"
 )
 
 // Entity is a context entity, i.e. a thing in the NGSI model.
@@ -352,7 +354,11 @@ func (e *Entity) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	_ = json.Unmarshal(b, &(t_.Attributes))
+	var jsonValues map[string]json.RawMessage
+
+	if err := json.Unmarshal(b, &jsonValues); err != nil {
+		return err
+	}
 	/*if err := json.Unmarshal(b, &(t_.Attributes)); err != nil {
 		return err
 	}*/
@@ -362,14 +368,27 @@ func (e *Entity) UnmarshalJSON(b []byte) error {
 		field := typ.Field(i)
 		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
 		if jsonTag != "" && jsonTag != "-" {
-			delete(t_.Attributes, jsonTag)
+			delete(jsonValues, jsonTag)
 		}
 	}
 
-	for _, a := range t_.Attributes {
+	t_.Attributes = make(map[string]*Attribute, len(jsonValues))
+	for attr, aJson := range jsonValues {
+		if !IsValidFieldSyntax(attr) {
+			fmt.Printf("[Warning] Attribute %v has wrong field syntax\n", attr)
+		}
+		var a Attribute
+
+		if err := json.Unmarshal(aJson, &a); err != nil {
+			return err
+		}
 		switch a.Type {
 		case DateTimeType:
-			if v, err := time.Parse(time.RFC3339, a.Value.(string)); err == nil {
+			val, ok := a.Value.(string)
+			if !ok {
+				return fmt.Errorf("Invalid DateTimeType value: '%v'", a.Value)
+			}
+			if v, err := time.Parse(time.RFC3339, val); err == nil {
 				a.Value = v
 			}
 		case GeoPointType:
@@ -381,7 +400,22 @@ func (e *Entity) UnmarshalJSON(b []byte) error {
 			if err := g.UnmarshalJSON([]byte(val)); err == nil {
 				a.Value = g
 			}
+		case GeoJSONType:
+			var ma map[string]json.RawMessage
+			if err := json.Unmarshal(aJson, &ma); err != nil {
+				return err
+			}
+			gJSON, ok := ma["value"]
+			if !ok {
+				return fmt.Errorf("Invalid geo:json value: '%v'", a)
+			}
+			g := new(geojson.Geometry)
+			if err := g.UnmarshalJSON(gJSON); err != nil {
+				return err
+			}
+			a.Value = g
 		}
+		t_.Attributes[attr] = &a
 	}
 
 	*e = Entity(t_)
@@ -632,6 +666,19 @@ func (e *Entity) SetAttributeAsGeoPoint(name string, value *GeoPoint) error {
 	return nil
 }
 
+func (e *Entity) SetAttributeAsGeoJSON(name string, value *geojson.Geometry) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  GeoJSONType,
+			Value: value,
+		},
+	}
+	return nil
+}
+
 func (a *Attribute) GetAsString() (string, error) {
 	if a.Type != StringType && a.Type != TextType {
 		return "", fmt.Errorf("Attribute is nor String or Text, but %s", a.Type)
@@ -690,6 +737,19 @@ func (a *Attribute) GetAsGeoPoint() (*GeoPoint, error) {
 	} else {
 		return g, nil
 	}
+}
+
+func (a *Attribute) GetAsGeoJSON() (*geojson.Geometry, error) {
+	if a.Type != GeoJSONType {
+		return nil, fmt.Errorf("Attribute is not geo:json, but '%s'", a.Type)
+	}
+	fmt.Println("type:", reflect.TypeOf(a.Value))
+	fmt.Println(a.Value)
+	g, ok := a.Value.(*geojson.Geometry)
+	if !ok {
+		return nil, fmt.Errorf("Attribute with geo:json type does not contain geo:json value")
+	}
+	return g, nil
 }
 
 func (e *Entity) GetAttributeAsString(attributeName string) (string, error) {
@@ -762,6 +822,14 @@ func (e *Entity) GetAttributeAsGeoPoint(attributeName string) (*GeoPoint, error)
 	} else {
 		return a.GetAsGeoPoint()
 	}
+}
+
+func (e *Entity) GetAttributeAsGeoJSON(attributeName string) (*geojson.Geometry, error) {
+	a, err := e.GetAttribute(attributeName)
+	if err != nil {
+		return new(geojson.Geometry), err
+	}
+	return a.GetAsGeoJSON()
 }
 
 func NewBatchUpdate(action ActionType) *BatchUpdate {
