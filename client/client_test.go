@@ -748,3 +748,39 @@ func TestRetrieveEntitiesWithFiwareHeaders(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 }
+
+func TestGlobalHeadersSetInRequest(t *testing.T) {
+	ts := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/v2") {
+					apiResourcesHandler(w, r)
+				} else {
+					if r.Header.Get("Authorization") != "Bearer testtoken" {
+						t.Errorf("Expected 'Bearer testtoken' as global header in 'Authorization', got '%s'", r.Header.Get("Authorization"))
+					}
+					if r.Header.Get("X-Custom-Header") != "customValue" {
+						t.Errorf("Expected 'customValue' as global header in 'X-Custom-Header', got '%s'", r.Header.Get("X-Custom-Header"))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `[{"id":"r2","type":"Room","pressure":{"type":"Integer","value":"720","metadata":{}},"temperature":{"type":"Float","value":34,"metadata":{}}},{"id":"r5","type":"Room","pressure":{"type":"Integer","value":"700","metadata":{}},"temperature":{"type":"Float","value":31,"metadata":{}}}
+]`)
+				}
+			}))
+	defer ts.Close()
+
+	cli, err := client.NewNgsiV2Client(
+		client.SetUrl(ts.URL),
+		client.SetGlobalHeader("Authorization", "Bearer testtoken"),
+		client.SetGlobalHeader("X-Custom-Header", "customValue"),
+	)
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if _, err := cli.ListEntities(
+		client.ListEntitiesSetType("Room")); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+}
