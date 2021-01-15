@@ -17,10 +17,11 @@ import (
 )
 
 type NgsiV2Client struct {
-	c       *http.Client
-	url     string
-	timeout time.Duration
-	apiRes  *model.APIResources
+	c                   *http.Client
+	url                 string
+	timeout             time.Duration
+	apiRes              *model.APIResources
+	customGlobalHeaders map[string]string
 }
 
 // ClientOptionFunc is a function that configures a NgsiV2Client.
@@ -29,7 +30,8 @@ type ClientOptionFunc func(*NgsiV2Client) error
 // NewNgsiV2Client creates a new NGSIv2 client.
 func NewNgsiV2Client(options ...ClientOptionFunc) (*NgsiV2Client, error) {
 	c := &NgsiV2Client{
-		timeout: time.Second * 15,
+		timeout:             time.Second * 15,
+		customGlobalHeaders: make(map[string]string),
 	}
 
 	// apply the options
@@ -62,18 +64,33 @@ func SetUrl(url string) ClientOptionFunc {
 	}
 }
 
+// SetGlobalHeader is used a custom header applied to all the requests
+// made to the context broker
+func SetGlobalHeader(key string, value string) ClientOptionFunc {
+	return func(c *NgsiV2Client) error {
+		c.customGlobalHeaders[key] = value
+		return nil
+	}
+}
+
 type additionalHeader struct {
 	key   string
 	value string
 }
 
-func newRequest(method, url string, body io.Reader, additionalHeaders ...additionalHeader) (*http.Request, error) {
+func (c *NgsiV2Client) newRequest(method, url string, body io.Reader, additionalHeaders ...additionalHeader) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", "ngsiv2-client")
 	req.Header.Add("Accept", "application/json")
+
+	// set the global headers
+	for header, value := range c.customGlobalHeaders {
+		req.Header.Add(header, value)
+	}
+
 	for _, ah := range additionalHeaders {
 		req.Header.Add(ah.key, ah.value)
 	}
@@ -85,7 +102,7 @@ func (c *NgsiV2Client) BatchUpdate(msg *model.BatchUpdate) error {
 	if err != nil {
 		return fmt.Errorf("Could not serialize message: %+v", err)
 	}
-	req, err := newRequest("POST", fmt.Sprintf("%s/v2/op/update", c.url), bytes.NewBuffer(jsonValue))
+	req, err := c.newRequest("POST", fmt.Sprintf("%s/v2/op/update", c.url), bytes.NewBuffer(jsonValue))
 	if err != nil {
 		return fmt.Errorf("Could not create request for batch update: %+v", err)
 	}
@@ -116,7 +133,7 @@ func (c *NgsiV2Client) BatchQuery(msg *model.BatchQuery, options ...BatchQueryPa
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize message: %+v", err)
 	}
-	req, err := newRequest("POST", fmt.Sprintf("%s/v2/op/query", c.url), bytes.NewBuffer(jsonValue))
+	req, err := c.newRequest("POST", fmt.Sprintf("%s/v2/op/query", c.url), bytes.NewBuffer(jsonValue))
 	if err != nil {
 		return nil, fmt.Errorf("could not create request for batch query: %+v", err)
 	}
@@ -209,7 +226,7 @@ func BatchQuerySetOptions(opts string) BatchQueryParamFunc {
 // RetrieveAPIResources gives url link values for retrieving resources.
 // See: https://orioncontextbroker.docs.apiary.io/#reference/api-entry-point/retrieve-api-resources/retrieve-api-resources
 func (c *NgsiV2Client) RetrieveAPIResources() (*model.APIResources, error) {
-	req, err := newRequest("GET", fmt.Sprintf("%s/v2", c.url), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/v2", c.url), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -355,7 +372,7 @@ func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamF
 		return nil, err
 	}
 
-	req, err := newRequest("GET", fmt.Sprintf("%s/%s", eUrl, params.id), nil, params.headers()...)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s", eUrl, params.id), nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -562,7 +579,7 @@ func (c *NgsiV2Client) ListEntities(options ...ListEntitiesParamFunc) ([]*model.
 		return nil, err
 	}
 
-	req, err := newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -647,7 +664,7 @@ func (c *NgsiV2Client) CountEntities(options ...ListEntitiesParamFunc) (int, err
 		return 0, err
 	}
 
-	req, err := newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s", eUrl), nil, params.headers()...)
 	if err != nil {
 		return 0, fmt.Errorf("Could not create request for API resources: %+v", err)
 	}
@@ -777,7 +794,7 @@ func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntit
 	if err != nil {
 		return "", false, fmt.Errorf("Could not serialize message: %v", err)
 	}
-	req, err := newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity), params.headers()...)
+	req, err := c.newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity), params.headers()...)
 	if err != nil {
 		return "", false, fmt.Errorf("Could not create request for batch update: %v", err)
 	}
@@ -851,7 +868,7 @@ func (c *NgsiV2Client) CreateSubscription(subscription *model.Subscription, opti
 	if err != nil {
 		return "", err
 	}
-	req, err := newRequest("POST", sUrl, bytes.NewBuffer(jsonValue), params.headers()...)
+	req, err := c.newRequest("POST", sUrl, bytes.NewBuffer(jsonValue), params.headers()...)
 	if err != nil {
 		return "", fmt.Errorf("Could not create request for subscription creation: %+v", err)
 	}
@@ -879,7 +896,7 @@ func (c *NgsiV2Client) RetrieveSubscription(id string) (*model.Subscription, err
 	if err != nil {
 		return nil, err
 	}
-	req, err := newRequest("GET", fmt.Sprintf("%s/%s", sUrl, id), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s", sUrl, id), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for subscription retrieval: %+v", err)
 	}
@@ -976,7 +993,7 @@ func (c *NgsiV2Client) RetrieveSubscriptions(options ...RetrieveSubscriptionsPar
 	if err != nil {
 		return nil, err
 	}
-	req, err := newRequest("GET", sUrl, nil, params.headers()...)
+	req, err := c.newRequest("GET", sUrl, nil, params.headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request for subscriptions retrieval: %+v", err)
 	}
@@ -1041,7 +1058,7 @@ func (c *NgsiV2Client) UpdateSubscription(id string, patchSubscription *model.Su
 		}
 	}
 
-	req, err := newRequest("PATCH", fmt.Sprintf("%s/%s", sUrl, id), bytes.NewBuffer(jsonValue), params.headers()...)
+	req, err := c.newRequest("PATCH", fmt.Sprintf("%s/%s", sUrl, id), bytes.NewBuffer(jsonValue), params.headers()...)
 	if err != nil {
 		return fmt.Errorf("Could not create request for subscription updating: %+v", err)
 	}
@@ -1079,7 +1096,7 @@ func (c *NgsiV2Client) DeleteSubscription(id string, options ...SubscriptionPara
 		}
 	}
 
-	req, err := newRequest("DELETE", fmt.Sprintf("%s/%s", sUrl, id), nil, params.headers()...)
+	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s", sUrl, id), nil, params.headers()...)
 	if err != nil {
 		return fmt.Errorf("Could not create request for subscription deletion: %+v", err)
 	}
