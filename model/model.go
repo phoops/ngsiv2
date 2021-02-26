@@ -185,6 +185,7 @@ type SubscriptionNotification struct {
 	LastNotification *time.Time                          `json:"lastNotification,omitempty"`
 	LastFailure      *time.Time                          `json:"lastFailure,omitempty"`
 	LastSuccess      *time.Time                          `json:"lastSuccess,omitempty"`
+	LastSuccessCode  *uint                               `json:"lastSuccessCode,omitempty"`
 }
 
 type Notification struct {
