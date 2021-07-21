@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 
 	geojson "github.com/paulmach/go.geojson"
 )
+
+var ErrInvalidCastingAttributeEntity = errors.New("could not cast the attribute of the entity")
 
 // Entity is a context entity, i.e. a thing in the NGSI model.
 type Entity struct {
@@ -684,7 +687,11 @@ func (a *Attribute) GetAsString() (string, error) {
 	if a.Type != StringType && a.Type != TextType {
 		return "", fmt.Errorf("Attribute is nor String or Text, but %s", a.Type)
 	}
-	return a.Value.(string), nil
+	rawString, ok := a.Value.(string)
+	if !ok {
+		return "", ErrInvalidCastingAttributeEntity
+	}
+	return rawString, nil
 }
 
 func (a *Attribute) GetAsInteger() (int, error) {
@@ -697,21 +704,28 @@ func (a *Attribute) GetAsInteger() (int, error) {
 	} else {
 		return int(fValue), nil
 	}
-	return int(a.Value.(float64)), nil
 }
 
 func (a *Attribute) GetAsFloat() (float64, error) {
 	if a.Type != FloatType && a.Type != NumberType {
 		return 0, fmt.Errorf("Attribute is nor Float or Number, but %s", a.Type)
 	}
-	return a.Value.(float64), nil
+	rawFloat, ok := a.Value.(float64)
+	if !ok {
+		return 0, ErrInvalidCastingAttributeEntity
+	}
+	return rawFloat, nil
 }
 
 func (a *Attribute) GetAsBoolean() (bool, error) {
 	if a.Type != BooleanType {
 		return false, fmt.Errorf("Attribute is not Boolean, but %s", a.Type)
 	}
-	return a.Value.(bool), nil
+	rawBool, ok := a.Value.(bool)
+	if !ok {
+		return false, ErrInvalidCastingAttributeEntity
+	}
+	return rawBool, nil
 }
 
 func (a *Attribute) GetAsDateTime() (time.Time, error) {
