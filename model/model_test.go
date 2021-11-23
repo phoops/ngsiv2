@@ -321,6 +321,75 @@ func TestEntityUnmarshal(t *testing.T) {
 	} else {
 		t.Fatal("Expected error on getting a nasty boolean, got nil")
 	}
+
+	structuredVal := `
+	{
+		"id": "Structured1",
+		"manufacturers": {
+			"metadata": {},
+			"type": "StructuredValue",
+			"value": [
+				"Audi",
+				"Alfa Romeo",
+				"BMW"
+			]
+		},
+		"seller": {
+			"metadata": {},
+			"type": "StructuredValue",
+			"value": {
+				"name": "Jane",
+				"age": 25
+			}
+		}
+	}
+	`
+
+	structuredEntity := &model.Entity{}
+	if err := json.Unmarshal([]byte(structuredVal), structuredEntity); err != nil {
+		t.Fatalf("Error unmarshaling entity: %v", err)
+	}
+
+	manufacturersAttr, err := structuredEntity.GetAttribute("manufacturers")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if manufacturersAttr.Type != model.StructuredValueType {
+		t.Fatalf("Expected '%s' for manufacturers attribute type, got '%s'", model.StructuredValueType, manufacturersAttr.Type)
+	}
+
+	type intarray []int
+	type stringarray []string
+	manufacturersInt := make(intarray, 0)
+	manufacturersString := make(stringarray, 0)
+	if err := manufacturersAttr.DecodeStructuredValue(&manufacturersInt); err == nil {
+		t.Fatal("Expected a failure on non integers 'manufacturers'")
+	}
+	err = manufacturersAttr.DecodeStructuredValue(&manufacturersString)
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if len(manufacturersString) != 3 {
+		t.Fatalf("Expected '%d' manufacturers, got '%d'", 3, len(manufacturersString))
+	}
+	if manufacturersString[2] != "BMW" {
+		t.Fatalf("Expected 'BMW' as third manufacturer, got '%s'", manufacturersString[2])
+	}
+
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	person := new(Person)
+	err = structuredEntity.DecodeStructuredValueAttribute("seller", person)
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	if person.Name != "Jane" || person.Age != 25 {
+		t.Fatalf("Expected Jane, got '%v'", *person)
+	}
 }
 
 func TestEntityMarshal(t *testing.T) {
@@ -351,6 +420,16 @@ func TestEntityMarshal(t *testing.T) {
 
 	geoJsonPoint := geojson.NewPointGeometry([]float64{4.1, 2.3})
 	office.SetAttributeAsGeoJSON("position", geoJsonPoint)
+
+	type Dog struct {
+		Name string
+		Age  int
+	}
+
+	ambra := &Dog{"Ambra", 4}
+	if err := office.SetAttributeAsStructuredValue("mascot", ambra); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
 
 	bytes, err := json.Marshal(office)
 	if err != nil {
@@ -480,6 +559,21 @@ func TestEntityMarshal(t *testing.T) {
 				t.Fatalf("Expected '%v' for location value, got '%v'", geoJsonPoint.Point, positionVal.Point)
 			}
 		}
+	}
+
+	mascotAttr, err := unmarshaled.GetAttribute("mascot")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if mascotAttr.Type != model.StructuredValueType {
+		t.Fatalf("Expected %s type, got '%s'", model.StructuredValueType, mascotAttr.Type)
+	}
+	mascot := new(Dog)
+	if err := mascotAttr.DecodeStructuredValue(mascot); err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if mascot.Name != "Ambra" || mascot.Age != 4 {
+		t.Fatalf("Expected Ambra as mascot, got '%v'", mascot)
 	}
 }
 
