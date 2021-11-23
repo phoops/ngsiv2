@@ -2,9 +2,10 @@ package model_test
 
 import (
 	"encoding/json"
-	geojson "github.com/paulmach/go.geojson"
 	"testing"
 	"time"
+
+	geojson "github.com/paulmach/go.geojson"
 
 	"github.com/phoops/ngsiv2/model"
 )
@@ -295,6 +296,30 @@ func TestEntityUnmarshal(t *testing.T) {
 		if !geoLocation.IsPoint() {
 			t.Fatalf("Expected value to be a Point got %v", err)
 		}
+	}
+
+	nastyBoolean := `
+	{
+		"id": "NastyBool1",
+		"valid": {
+			"metadata": {},
+			"type": "Boolean",
+			"value": 1
+		}
+	}
+	`
+
+	nastyBoolEntity := &model.Entity{}
+	if err := json.Unmarshal([]byte(nastyBoolean), nastyBoolEntity); err != nil {
+		t.Fatalf("Error unmarshaling entity: %v", err)
+	}
+
+	if _, err := nastyBoolEntity.GetAttributeAsBoolean("valid"); err != nil {
+		if err != model.ErrInvalidCastingAttributeEntity {
+			t.Fatalf("Expected casting error on nasty boolean, got: %v", err)
+		}
+	} else {
+		t.Fatal("Expected error on getting a nasty boolean, got nil")
 	}
 }
 
