@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/mitchellh/mapstructure"
 	geojson "github.com/paulmach/go.geojson"
 )
 
@@ -41,20 +42,22 @@ type Metadata struct {
 
 type AttributeType string
 
+// Constants representing NGSIv2 special data types
 const (
-	StringType     AttributeType = "String"
-	TextType       AttributeType = "Text"
-	NumberType     AttributeType = "Number"
-	FloatType      AttributeType = "Float"
-	IntegerType    AttributeType = "Integer"
-	BooleanType    AttributeType = "Boolean"
-	PercentageType AttributeType = "Percentage"
-	DateTimeType   AttributeType = "DateTime"
-	GeoPointType   AttributeType = "geo:point"
-	GeoLineType    AttributeType = "geo:line"
-	GeoPolygonType AttributeType = "geo:polygon"
-	GeoBoxType     AttributeType = "geo:box"
-	GeoJSONType    AttributeType = "geo:json"
+	StringType          AttributeType = "String"
+	TextType            AttributeType = "Text"
+	NumberType          AttributeType = "Number"
+	FloatType           AttributeType = "Float"
+	IntegerType         AttributeType = "Integer"
+	BooleanType         AttributeType = "Boolean"
+	PercentageType      AttributeType = "Percentage"
+	DateTimeType        AttributeType = "DateTime"
+	GeoPointType        AttributeType = "geo:point"
+	GeoLineType         AttributeType = "geo:line"
+	GeoPolygonType      AttributeType = "geo:polygon"
+	GeoBoxType          AttributeType = "geo:box"
+	GeoJSONType         AttributeType = "geo:json"
+	StructuredValueType AttributeType = "StructuredValue"
 )
 
 const (
@@ -683,6 +686,19 @@ func (e *Entity) SetAttributeAsGeoJSON(name string, value *geojson.Geometry) err
 	return nil
 }
 
+func (e *Entity) SetAttributeAsStructuredValue(name string, value interface{}) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  StructuredValueType,
+			Value: value,
+		},
+	}
+	return nil
+}
+
 func (a *Attribute) GetAsString() (string, error) {
 	if a.Type != StringType && a.Type != TextType {
 		return "", fmt.Errorf("Attribute is nor String or Text, but %s", a.Type)
@@ -765,6 +781,16 @@ func (a *Attribute) GetAsGeoJSON() (*geojson.Geometry, error) {
 	return g, nil
 }
 
+// DecodeStructuredValue decodes the attribute into output if attribute type is StructuredValue.
+// output must be a pointer to a map or struct.
+func (a *Attribute) DecodeStructuredValue(output interface{}) error {
+	if a.Type != StructuredValueType {
+		return fmt.Errorf("Attribute is not %s, but '%s'", StructuredValueType, a.Type)
+	}
+
+	return mapstructure.Decode(a.Value, output)
+}
+
 func (e *Entity) GetAttributeAsString(attributeName string) (string, error) {
 	if a, err := e.GetAttribute(attributeName); err != nil {
 		return "", err
@@ -843,6 +869,16 @@ func (e *Entity) GetAttributeAsGeoJSON(attributeName string) (*geojson.Geometry,
 		return new(geojson.Geometry), err
 	}
 	return a.GetAsGeoJSON()
+}
+
+// DecodeStructuredValueAttribute decodes the attribute named attributeName into output if
+// attribute type is StructuredValue. output must be a pointer to a map or struct.
+func (e *Entity) DecodeStructuredValueAttribute(attributeName string, output interface{}) error {
+	a, err := e.GetAttribute(attributeName)
+	if err != nil {
+		return err
+	}
+	return a.DecodeStructuredValue(output)
 }
 
 func NewBatchUpdate(action ActionType) *BatchUpdate {
