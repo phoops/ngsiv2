@@ -564,6 +564,11 @@ func (e *Entity) SetAttributeAsString(name string, value string) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
 	}
+
+	if !IsValidString(value) {
+		return fmt.Errorf("Invalid string value for attribute %s, contains invalid chars", name)
+	}
+
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  StringType,
@@ -577,6 +582,11 @@ func (e *Entity) SetAttributeAsText(name string, value string) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
 	}
+
+	if !IsValidString(value) {
+		return fmt.Errorf("Invalid string value for attribute %s, contains invalid chars", name)
+	}
+
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  TextType,
