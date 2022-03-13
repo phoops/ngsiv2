@@ -67,7 +67,7 @@ func TestEntityUnmarshal(t *testing.T) {
 	}
 `
 	roomEntity := &model.Entity{}
-	if err := json.Unmarshal([]byte(roomEntityJson), roomEntity); err != nil {
+	if err := roomEntity.UnmarshalJSON([]byte(roomEntityJson)); err != nil {
 		t.Fatalf("Error unmarshaling entity: %v", err)
 	}
 	if roomEntity.Id != "Room1" {
@@ -266,7 +266,7 @@ func TestEntityUnmarshal(t *testing.T) {
 	}
 	`
 	badLocationEntity := &model.Entity{}
-	err = json.Unmarshal([]byte(badLocation), badLocationEntity)
+	err = badLocationEntity.UnmarshalJSON([]byte(badLocation))
 	if err == nil {
 		t.Fatalf("Expected error unmarshaling invalid geo:point")
 	}
@@ -286,7 +286,7 @@ func TestEntityUnmarshal(t *testing.T) {
 	`
 
 	geoJSONEntity := &model.Entity{}
-	if err := json.Unmarshal([]byte(geoJSON), geoJSONEntity); err != nil {
+	if err := geoJSONEntity.UnmarshalJSON([]byte(geoJSON)); err != nil {
 		t.Fatalf("Error unmarshaling entity: %v", err)
 	}
 
@@ -310,7 +310,7 @@ func TestEntityUnmarshal(t *testing.T) {
 	`
 
 	nastyBoolEntity := &model.Entity{}
-	if err := json.Unmarshal([]byte(nastyBoolean), nastyBoolEntity); err != nil {
+	if err := nastyBoolEntity.UnmarshalJSON([]byte(nastyBoolean)); err != nil {
 		t.Fatalf("Error unmarshaling entity: %v", err)
 	}
 
@@ -346,7 +346,7 @@ func TestEntityUnmarshal(t *testing.T) {
 	`
 
 	structuredEntity := &model.Entity{}
-	if err := json.Unmarshal([]byte(structuredVal), structuredEntity); err != nil {
+	if err := structuredEntity.UnmarshalJSON([]byte(structuredVal)); err != nil {
 		t.Fatalf("Error unmarshaling entity: %v", err)
 	}
 
@@ -437,7 +437,7 @@ func TestEntityMarshal(t *testing.T) {
 	}
 
 	unmarshaled := &model.Entity{}
-	if err = json.Unmarshal(bytes, unmarshaled); err != nil {
+	if err = unmarshaled.UnmarshalJSON(bytes); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 
@@ -733,7 +733,7 @@ func TestBuiltinAttributesUnmarshal(t *testing.T) {
 	}
 `
 	roomEntity := &model.Entity{}
-	if err := json.Unmarshal([]byte(roomEntityJson), roomEntity); err != nil {
+	if err := roomEntity.UnmarshalJSON([]byte(roomEntityJson)); err != nil {
 		t.Fatalf("Error unmarshaling entity: %v", err)
 	}
 
@@ -776,7 +776,7 @@ func TestDateExpiresMarshal(t *testing.T) {
 	}
 
 	unmarshaled := &model.Entity{}
-	if err = json.Unmarshal(bytes, unmarshaled); err != nil {
+	if err = unmarshaled.UnmarshalJSON(bytes); err != nil {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 
@@ -837,16 +837,16 @@ func TestIsValidFieldSyntax(t *testing.T) {
 		t.Fatal("Field syntax shoud not be valid for a string with whitespaces")
 	}
 	if model.IsValidFieldSyntax("a&b") ||
-		model.IsValidFieldSyntax("a?b") ||
-		model.IsValidFieldSyntax("a/b") ||
-		model.IsValidFieldSyntax("a#b") {
+			model.IsValidFieldSyntax("a?b") ||
+			model.IsValidFieldSyntax("a/b") ||
+			model.IsValidFieldSyntax("a#b") {
 		t.Fatal("Field syntax shoud not be valid for a string with restricted characters")
 	}
 	if model.IsValidFieldSyntax("a\fb") ||
-		model.IsValidFieldSyntax("a\tb") ||
-		model.IsValidFieldSyntax("a\bb") ||
-		model.IsValidFieldSyntax("a\rb") ||
-		model.IsValidFieldSyntax("a\nb") {
+			model.IsValidFieldSyntax("a\tb") ||
+			model.IsValidFieldSyntax("a\bb") ||
+			model.IsValidFieldSyntax("a\rb") ||
+			model.IsValidFieldSyntax("a\nb") {
 		t.Fatal("Field syntax shoud not be valid for a string with control characters")
 	}
 }
@@ -856,15 +856,15 @@ func TestIsValidAttributeName(t *testing.T) {
 		t.Fatalf("Attribute name should be valid")
 	}
 	if model.IsValidAttributeName("not valid") ||
-		model.IsValidAttributeName("temperature?") ||
-		model.IsValidAttributeName("a/b") {
+			model.IsValidAttributeName("temperature?") ||
+			model.IsValidAttributeName("a/b") {
 		t.Fatalf("Attribute name should not be valid")
 	}
 	if model.IsValidAttributeName("id") ||
-		model.IsValidAttributeName("type") ||
-		model.IsValidAttributeName("geo:distance") ||
-		model.IsValidAttributeName("dateCreated") ||
-		model.IsValidAttributeName("dateModified") {
+			model.IsValidAttributeName("type") ||
+			model.IsValidAttributeName("geo:distance") ||
+			model.IsValidAttributeName("dateCreated") ||
+			model.IsValidAttributeName("dateModified") {
 		t.Fatalf("Attribute name should not be valid")
 	}
 }

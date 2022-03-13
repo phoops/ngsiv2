@@ -325,9 +325,9 @@ func RetrieveEntityAddAttribute(attr string) RetrieveEntityParamFunc {
 func setRetrieveEntityOptions(p *retrieveEntityParams, opts model.SimplifiedEntityRepresentation) error {
 	if opts != "" {
 		return fmt.Errorf("Simplified entity representation is not supported yet!")
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func RetrieveEntitySetOptions(opts model.SimplifiedEntityRepresentation) RetrieveEntityParamFunc {
@@ -398,9 +398,11 @@ func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamF
 	if resp.StatusCode == http.StatusConflict {
 		return nil, fmt.Errorf("Conflict (id non-unique?).\nResponse body: %s", string(bodyBytes))
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
 	} else {
+		fmt.Println(string(bodyBytes))
 		ret := new(model.Entity)
 		if err := json.Unmarshal(bodyBytes, ret); err != nil {
 			return nil, fmt.Errorf("Error reading retrieve entity response: %+v", err)
