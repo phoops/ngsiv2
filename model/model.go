@@ -452,6 +452,11 @@ func (e *Entity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
+func (e *Entity) String() string {
+	b, _ := e.MarshalJSON()
+	return string(b)
+}
+
 func NewGeoPoint(latitude float64, longitude float64) *GeoPoint {
 	return &GeoPoint{latitude, longitude}
 }
