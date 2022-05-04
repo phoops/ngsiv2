@@ -15,9 +15,9 @@ type testReceiver struct {
 }
 
 func newTestReceiver() *testReceiver {
-	tr := &testReceiver{}
-	tr.notifications = make(map[string][]*model.Entity)
-	return tr
+	return &testReceiver{
+		notifications: make(map[string][]*model.Entity),
+	}
 }
 
 func (tr *testReceiver) Receive(subscritionId string, entities []*model.Entity) {
@@ -26,7 +26,7 @@ func (tr *testReceiver) Receive(subscritionId string, entities []*model.Entity) 
 
 func TestSubscriptionHandlerNotificationInvalidMethod(t *testing.T) {
 	receiver := newTestReceiver()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	rr := httptest.NewRecorder()
 	h := handler.NewNgsiV2SubscriptionHandler(receiver)
 
@@ -39,7 +39,7 @@ func TestSubscriptionHandlerNotificationInvalidMethod(t *testing.T) {
 
 func TestSubscriptionHandlerNotificationInvalidHeader(t *testing.T) {
 	receiver := newTestReceiver()
-	req, _ := http.NewRequest("POST", "/test", strings.NewReader(`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(`
 {
     "data": [
         {
@@ -67,7 +67,7 @@ func TestSubscriptionHandlerNotificationInvalidHeader(t *testing.T) {
 
 func TestSubscriptionHandlerNotificationOneData(t *testing.T) {
 	receiver := newTestReceiver()
-	req, _ := http.NewRequest("POST", "/test", strings.NewReader(`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(`
 {
     "data": [
         {
