@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -704,6 +705,39 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 		t.Fatalf("Expected '%v' for location value, got '%v'", gp, locationAttrValue)
 	}
 }
+
+func TestGetAsInteger(t *testing.T) {
+	tests := []struct{
+		name string
+		attr *model.Attribute
+		want interface{}
+		fails bool
+	}{
+		{"cast as integer", model.NewAttribute(model.IntegerType, 42.42), 42, false},
+		{"integer overflow", model.NewAttribute(model.IntegerType, float64(math.MaxInt64+1)), 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.attr.GetAsInteger()
+			if tt.fails {
+				if err == nil {
+					t.Fatal("expected error but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("expected not error, got %v", err)
+			}
+
+			if tt.want != got {
+				t.Fatalf("expected %d but got %d ", tt.want, got)
+			}
+		})
+	}
+}
+
 
 func TestBuiltinAttributesUnmarshal(t *testing.T) {
 	roomEntityJson := `

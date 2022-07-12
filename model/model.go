@@ -24,7 +24,7 @@ type Entity struct {
 }
 
 type typeValue struct {
-	//Name  string      `json:"name"`
+	// Name  string      `json:"name"`
 	Type  AttributeType `json:"type,omitempty"`
 	Value interface{}   `json:"value"`
 }
@@ -33,6 +33,15 @@ type typeValue struct {
 type Attribute struct {
 	typeValue
 	Metadata map[string]*Metadata `json:"metadata,omitempty"`
+}
+
+func NewAttribute(typ AttributeType, v interface{}) *Attribute {
+	return &Attribute{
+		typeValue: typeValue{
+			Type:  typ,
+			Value: v,
+		},
+	}
 }
 
 // Metadata is a Context metadata, i.e. an optional part of the attribute.
@@ -514,8 +523,8 @@ func IsValidFieldSyntax(str string) bool {
 	}
 	for _, r := range str {
 		if unicode.IsControl(r) ||
-			unicode.IsSpace(r) ||
-			strings.ContainsRune(InvalidFieldChars, r) {
+				unicode.IsSpace(r) ||
+				strings.ContainsRune(InvalidFieldChars, r) {
 			return false
 		}
 	}
@@ -720,11 +729,16 @@ func (a *Attribute) GetAsInteger() (int, error) {
 		return 0, fmt.Errorf("Attribute is not Integer, but %s", a.Type)
 	}
 	// when we read from JSON, an int is a float64, when we fill with this library, an int is... an int!
-	if fValue, ok := a.Value.(float64); !ok {
+	f, ok := a.Value.(float64)
+	if !ok {
 		return a.Value.(int), nil
-	} else {
-		return int(fValue), nil
 	}
+
+	if f > 0 && int(f) < 0 {
+		return 0, errors.New("integer out of range")
+	}
+
+	return int(f), nil
 }
 
 func (a *Attribute) GetAsFloat() (float64, error) {
