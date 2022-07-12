@@ -796,6 +796,52 @@ func TestBuiltinAttributesUnmarshal(t *testing.T) {
 
 }
 
+func TestSetAttributeChecks(t *testing.T) {
+	office, err := model.NewEntity("openspace", "Office")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	// Try to set valid values and fields
+	err = office.SetAttributeAsString("name", "Phoops HQ")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	err = office.SetAttributeAsText("description", "distributed")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
+	// Try to set invalid values
+	err = office.SetAttributeAsString("name", "O\"ffice")
+	if err == nil {
+		t.Fatalf("SetAttributeAsString check for invalid chars failed")
+	}
+
+	err = office.SetAttributeAsText("description", "remote >> office")
+	if err == nil {
+		t.Fatalf("SetAttributeAsText check for invalid chars failed")
+	}
+
+	// Try to set invalid field names
+	err = office.SetAttributeAsText("bonus&malus", "random")
+	if err == nil {
+		t.Fatalf("SetAttributeAsText check for invalid field name failed")
+	}
+
+	// Check that it's not set despite of the returned error
+	name, err := office.GetAttributeAsString("name")
+	if name != "Phoops HQ" {
+		t.Fatalf("SetAttributeAsString set value despite of error")
+	}
+
+	description, err := office.GetAttributeAsString("description")
+	if description != "distributed" {
+		t.Fatalf("SetAttributeAsText set value despite of error")
+	}
+
+}
 func TestDateExpiresMarshal(t *testing.T) {
 	office, err := model.NewEntity("openspace", "Office")
 	if err != nil {
