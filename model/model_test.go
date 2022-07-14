@@ -707,10 +707,10 @@ func TestDirectEntityAttributeAccess(t *testing.T) {
 }
 
 func TestGetAsInteger(t *testing.T) {
-	tests := []struct{
-		name string
-		attr *model.Attribute
-		want interface{}
+	tests := []struct {
+		name  string
+		attr  *model.Attribute
+		want  interface{}
 		fails bool
 	}{
 		{"cast as integer", model.NewAttribute(model.IntegerType, 42.42), 42, false},
@@ -737,7 +737,6 @@ func TestGetAsInteger(t *testing.T) {
 		})
 	}
 }
-
 
 func TestBuiltinAttributesUnmarshal(t *testing.T) {
 	roomEntityJson := `

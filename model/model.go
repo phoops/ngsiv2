@@ -523,8 +523,8 @@ func IsValidFieldSyntax(str string) bool {
 	}
 	for _, r := range str {
 		if unicode.IsControl(r) ||
-				unicode.IsSpace(r) ||
-				strings.ContainsRune(InvalidFieldChars, r) {
+			unicode.IsSpace(r) ||
+			strings.ContainsRune(InvalidFieldChars, r) {
 			return false
 		}
 	}
