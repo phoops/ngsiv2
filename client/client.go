@@ -402,7 +402,6 @@ func (c *NgsiV2Client) RetrieveEntity(id string, options ...RetrieveEntityParamF
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
 	} else {
-		fmt.Println(string(bodyBytes))
 		ret := new(model.Entity)
 		if err := json.Unmarshal(bodyBytes, ret); err != nil {
 			return nil, fmt.Errorf("Error reading retrieve entity response: %+v", err)
