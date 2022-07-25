@@ -67,6 +67,7 @@ const (
 	GeoBoxType          AttributeType = "geo:box"
 	GeoJSONType         AttributeType = "geo:json"
 	StructuredValueType AttributeType = "StructuredValue"
+	RelationshipType    AttributeType = "Relationship"
 )
 
 const (
@@ -724,8 +725,8 @@ func (e *Entity) SetAttributeAsStructuredValue(name string, value interface{}) e
 }
 
 func (a *Attribute) GetAsString() (string, error) {
-	if a.Type != StringType && a.Type != TextType {
-		return "", fmt.Errorf("Attribute is nor String or Text, but %s", a.Type)
+	if a.Type != StringType && a.Type != TextType && a.Type != RelationshipType {
+		return "", fmt.Errorf("Attribute is nor String, Text or Relationship, but %s", a.Type)
 	}
 	rawString, ok := a.Value.(string)
 	if !ok {

@@ -64,6 +64,11 @@ func TestEntityUnmarshal(t *testing.T) {
 				"depth": 5
 			}
 		},
+		"refBuilding": {
+			"metadata": {},
+			"type": "Relationship",
+			"value": "building:openspace:1"
+		},
 		"type": "Room"
 	}
 `
@@ -101,6 +106,23 @@ func TestEntityUnmarshal(t *testing.T) {
 	}
 	if daVal, _ := roomEntity.GetAttributeAsString("description"); daVal != "A wonderful sensor" {
 		t.Fatalf("Expected '%s' for description attribute as string; got '%s'", "A wonderful sensor", daVal)
+	}
+	refBuildingAttr, err := roomEntity.GetAttribute("refBuilding")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if refBuildingAttr.Type != model.RelationshipType {
+		t.Fatalf("Expected '%s' for refBuilding attribute type; got '%s'", model.RelationshipType, refBuildingAttr.Type)
+	}
+	buildingId, err := refBuildingAttr.GetAsString()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	if buildingId != "building:openspace:1" {
+		t.Fatalf("Expected '%s' for refBuilding value; got '%s'", "building:openspace:1", buildingId)
+	}
+	if daVal, _ := roomEntity.GetAttributeAsString("refBuilding"); daVal != "building:openspace:1" {
+		t.Fatalf("Expected '%s' for refBuilding attribute as string; got '%s'", "building:openspace:1", daVal)
 	}
 
 	versionAttr, err := roomEntity.GetAttribute("version")
