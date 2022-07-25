@@ -938,16 +938,16 @@ func TestIsValidFieldSyntax(t *testing.T) {
 		t.Fatal("Field syntax shoud not be valid for a string with whitespaces")
 	}
 	if model.IsValidFieldSyntax("a&b") ||
-			model.IsValidFieldSyntax("a?b") ||
-			model.IsValidFieldSyntax("a/b") ||
-			model.IsValidFieldSyntax("a#b") {
+		model.IsValidFieldSyntax("a?b") ||
+		model.IsValidFieldSyntax("a/b") ||
+		model.IsValidFieldSyntax("a#b") {
 		t.Fatal("Field syntax shoud not be valid for a string with restricted characters")
 	}
 	if model.IsValidFieldSyntax("a\fb") ||
-			model.IsValidFieldSyntax("a\tb") ||
-			model.IsValidFieldSyntax("a\bb") ||
-			model.IsValidFieldSyntax("a\rb") ||
-			model.IsValidFieldSyntax("a\nb") {
+		model.IsValidFieldSyntax("a\tb") ||
+		model.IsValidFieldSyntax("a\bb") ||
+		model.IsValidFieldSyntax("a\rb") ||
+		model.IsValidFieldSyntax("a\nb") {
 		t.Fatal("Field syntax shoud not be valid for a string with control characters")
 	}
 }
@@ -957,15 +957,15 @@ func TestIsValidAttributeName(t *testing.T) {
 		t.Fatalf("Attribute name should be valid")
 	}
 	if model.IsValidAttributeName("not valid") ||
-			model.IsValidAttributeName("temperature?") ||
-			model.IsValidAttributeName("a/b") {
+		model.IsValidAttributeName("temperature?") ||
+		model.IsValidAttributeName("a/b") {
 		t.Fatalf("Attribute name should not be valid")
 	}
 	if model.IsValidAttributeName("id") ||
-			model.IsValidAttributeName("type") ||
-			model.IsValidAttributeName("geo:distance") ||
-			model.IsValidAttributeName("dateCreated") ||
-			model.IsValidAttributeName("dateModified") {
+		model.IsValidAttributeName("type") ||
+		model.IsValidAttributeName("geo:distance") ||
+		model.IsValidAttributeName("dateCreated") ||
+		model.IsValidAttributeName("dateModified") {
 		t.Fatalf("Attribute name should not be valid")
 	}
 }
