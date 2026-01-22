@@ -429,6 +429,7 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	office.SetAttributeAsString("name", "Phoops HQ")
 	office.SetAttributeAsText("description", "very hot historical building")
+	office.SetAttributeAsTextUnrestricted("extendedDescription", "the (historical) building info: sqmeters=200.40; city=\"Florence\";")
 	office.SetAttributeAsNumber("sqmeters", 200.40)
 	office.SetAttributeAsFloat("temperature", 34.2) // it's July and fan coils aren't very good
 	office.SetAttributeAsBoolean("dirty", false)
@@ -494,6 +495,19 @@ func TestEntityMarshal(t *testing.T) {
 	}
 	if descriptionVal != "very hot historical building" {
 		t.Fatalf("Expected '%s' for description attribute, got '%s'", "very hot historical building", descriptionVal)
+	}
+
+	extendedDescriptionAttr, err := unmarshaled.GetAttribute("extendedDescription")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	extendedDescriptionVal, err := extendedDescriptionAttr.GetAsString()
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+	expectedExtendedDescription := "the (historical) building info: sqmeters=200.40; city=\"Florence\";"
+	if extendedDescriptionVal != expectedExtendedDescription {
+		t.Fatalf("Expected '%s' for extendedDescription attribute, got '%s'", expectedExtendedDescription, extendedDescriptionVal)
 	}
 
 	sqmetersAttr, err := unmarshaled.GetAttribute("sqmeters")
@@ -834,6 +848,11 @@ func TestSetAttributeChecks(t *testing.T) {
 		t.Fatalf("Unexpected error: '%v'", err)
 	}
 
+	err = office.SetAttributeAsTextUnrestricted("descriptionWithSpecialChars", "<text> (with) \"special\" 'chars' = ;")
+	if err != nil {
+		t.Fatalf("Unexpected error: '%v'", err)
+	}
+
 	// Try to set invalid values
 	err = office.SetAttributeAsString("name", "O\"ffice")
 	if err == nil {
@@ -849,6 +868,12 @@ func TestSetAttributeChecks(t *testing.T) {
 	err = office.SetAttributeAsText("bonus&malus", "random")
 	if err == nil {
 		t.Fatalf("SetAttributeAsText check for invalid field name failed")
+	}
+
+	// Try to set invalid field names
+	err = office.SetAttributeAsTextUnrestricted("bonus&malus", "random")
+	if err == nil {
+		t.Fatalf("SetAttributeAsTextUnrestricted check for invalid field name failed")
 	}
 
 	// Check that it's not set despite of the returned error

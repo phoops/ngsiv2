@@ -68,6 +68,7 @@ const (
 	GeoJSONType         AttributeType = "geo:json"
 	StructuredValueType AttributeType = "StructuredValue"
 	RelationshipType    AttributeType = "Relationship"
+	TextUnrestricted    AttributeType = "TextUnrestricted"
 )
 
 const (
@@ -611,6 +612,20 @@ func (e *Entity) SetAttributeAsText(name string, value string) error {
 	return nil
 }
 
+func (e *Entity) SetAttributeAsTextUnrestricted(name string, value string) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  TextUnrestricted,
+			Value: value,
+		},
+	}
+	return nil
+}
+
 func (e *Entity) SetAttributeAsNumber(name string, value float64) error {
 	if err := validateAttributeName(name); err != nil {
 		return err
@@ -725,7 +740,7 @@ func (e *Entity) SetAttributeAsStructuredValue(name string, value interface{}) e
 }
 
 func (a *Attribute) GetAsString() (string, error) {
-	if a.Type != StringType && a.Type != TextType && a.Type != RelationshipType {
+	if a.Type != StringType && a.Type != TextType && a.Type != RelationshipType && a.Type != TextUnrestricted {
 		return "", fmt.Errorf("Attribute is nor String, Text or Relationship, but %s", a.Type)
 	}
 	rawString, ok := a.Value.(string)
