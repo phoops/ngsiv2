@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -69,6 +70,7 @@ const (
 	StructuredValueType AttributeType = "StructuredValue"
 	RelationshipType    AttributeType = "Relationship"
 	TextUnrestricted    AttributeType = "TextUnrestricted"
+	URLType             AttributeType = "URL"
 )
 
 const (
@@ -507,6 +509,18 @@ func IsValidString(str string) bool {
 	return !strings.ContainsAny(str, InvalidChars)
 }
 
+func IsValidURL(str string) bool {
+	parsedUrl, err := url.ParseRequestURI(str)
+	if err != nil {
+		return false
+	}
+
+	if parsedUrl.Scheme == "" || parsedUrl.Host == "" {
+		return false
+	}
+	return true
+}
+
 // SanitizeString removes any forbidden character from a string.
 func SanitizeString(str string) string {
 	return strings.Map(func(r rune) rune {
@@ -620,6 +634,24 @@ func (e *Entity) SetAttributeAsTextUnrestricted(name string, value string) error
 	e.Attributes[name] = &Attribute{
 		typeValue: typeValue{
 			Type:  TextUnrestricted,
+			Value: value,
+		},
+	}
+	return nil
+}
+
+func (e *Entity) SetAttributeAsURL(name string, value string) error {
+	if err := validateAttributeName(name); err != nil {
+		return err
+	}
+
+	if !IsValidURL(value) {
+		return fmt.Errorf("Invalid string value for attribute %s, not a valid URL", name)
+	}
+
+	e.Attributes[name] = &Attribute{
+		typeValue: typeValue{
+			Type:  URLType,
 			Value: value,
 		},
 	}
@@ -740,8 +772,8 @@ func (e *Entity) SetAttributeAsStructuredValue(name string, value interface{}) e
 }
 
 func (a *Attribute) GetAsString() (string, error) {
-	if a.Type != StringType && a.Type != TextType && a.Type != RelationshipType && a.Type != TextUnrestricted {
-		return "", fmt.Errorf("Attribute is nor String, Text or Relationship, but %s", a.Type)
+	if a.Type != StringType && a.Type != TextType && a.Type != RelationshipType && a.Type != TextUnrestricted && a.Type != URLType {
+		return "", fmt.Errorf("Attribute is nor String, Text, Relationship, TextUnrestricted or URL, but %s", a.Type)
 	}
 	rawString, ok := a.Value.(string)
 	if !ok {
