@@ -791,15 +791,17 @@ func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntit
 		return "", false, err
 	}
 
-	jsonEntity, err := json.Marshal(entity)
+	jsonEntity, err := entity.MarshalJSON()
 	if err != nil {
-		return "", false, fmt.Errorf("Could not serialize message: %v", err)
+		return "", false, fmt.Errorf("could not serialize message: %v", err)
 	}
-	req, err := c.newRequest("POST", eUrl, bytes.NewBuffer(jsonEntity), params.headers()...)
+
+	req, err := c.newRequest(http.MethodPost, eUrl, bytes.NewBuffer(jsonEntity), params.headers()...)
 	if err != nil {
-		return "", false, fmt.Errorf("Could not create request for batch update: %v", err)
+		return "", false, fmt.Errorf("could not create request for batch update: %v", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
+
 	if params.options != "" {
 		q := req.URL.Query()
 		q.Add("options", string(params.options))
@@ -814,17 +816,15 @@ func (c *NgsiV2Client) CreateEntity(entity *model.Entity, options ...CreateEntit
 
 	if resp.StatusCode == http.StatusCreated {
 		return resp.Header.Get("Location"), false, nil
-	} else if resp.StatusCode == http.StatusNoContent {
+	}
+
+	if resp.StatusCode == http.StatusNoContent {
 		return resp.Header.Get("Location"), true, nil
 	} else {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		return "", false, fmt.Errorf("Unexpected status code: '%d'\nResponse body: %s", resp.StatusCode, string(bodyBytes))
 	}
-	/*
-		q := req.URL.Query()
-		req.URL.RawQuery = q.Encode()
 
-		return nil*/
 }
 
 type subscriptionParams struct {
