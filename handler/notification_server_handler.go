@@ -1,4 +1,4 @@
-// Handler for managing notification data received through subscriptions.
+// Package handler for managing notification data received through subscriptions.
 // Thanks to Matt Silverlock (https://twitter.com/@elithrar)
 // for the idea on handlers with errors.
 package handler
@@ -6,19 +6,20 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/phoops/ngsiv2/model"
 )
 
-// Error embeds the error interface and has a HTTP status code
+// Error embeds the error interface and has an HTTP status code
 type Error interface {
 	error
 	Status() int
 }
 
-// StatusError is an error with a HTTP status code
+// StatusError is an error with an HTTP status code
 type StatusError struct {
 	Code int
 	Err  error
@@ -29,14 +30,14 @@ func (se StatusError) Error() string {
 	return se.Err.Error()
 }
 
-// Returns the HTTP status code associated with the error
+// Status returns the HTTP status code associated with the error
 func (se StatusError) Status() int {
 	return se.Code
 }
 
 // NotificationReceiver receives notifications from subscriptions
 type NotificationReceiver interface {
-	Receive(subscritionId string, entities []*model.Entity)
+	Receive(subscriptionId string, entities []*model.Entity)
 }
 
 // Handler struct for managing errors and notification receivers
@@ -66,30 +67,28 @@ func NewNgsiV2SubscriptionHandler(receivers ...NotificationReceiver) Handler {
 }
 
 func NgsiV2SubscriptionHandler(receivers []NotificationReceiver, w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
-		return StatusError{http.StatusMethodNotAllowed, errors.New("Expected a POST")}
+	if r.Method != http.MethodPost {
+		return StatusError{http.StatusMethodNotAllowed, fmt.Errorf("expected method POST, got %s", r.Method)}
 	}
 
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		if !strings.HasPrefix(ct, "application/json") {
-			return StatusError{http.StatusBadRequest, errors.New("Invalid notification payload")}
+			return StatusError{Code: http.StatusBadRequest, Err: errors.New("invalid notification payload")}
 		}
 	}
 
 	// maximum read of 8MB, the current max for Orion (https://fiware-orion.readthedocs.io/en/master/user/known_limitations/index.html)
-	r.Body = http.MaxBytesReader(w, r.Body, 8*1024*1024)
-
-	decoder := json.NewDecoder(r.Body)
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
 
 	var n model.Notification
-	err := decoder.Decode(&n)
+	err := json.NewDecoder(r.Body).Decode(&n)
 	if err != nil {
 		// unfortunately, it is not defined yet
 		if err.Error() == "http: request body too large" {
-			return StatusError{http.StatusRequestEntityTooLarge, err}
-		} else {
-			return StatusError{http.StatusBadRequest, err}
+			return StatusError{Code: http.StatusRequestEntityTooLarge, Err: err}
 		}
+
+		return StatusError{Code: http.StatusBadRequest, Err: err}
 	}
 
 	for _, r := range receivers {
